@@ -322,11 +322,24 @@ function renderCategoryBreakdown(summary) {
   empty.hidden = true;
   const max = Math.max(...rows.map((r) => r.total));
   rows.forEach((r) => {
+    let pct, cls;
+    if (r.limit && r.limit > 0) {
+      pct = Math.min(100, (r.total / r.limit) * 100);
+      cls = r.exceeded ? "over" : r.at_limit ? "at" : r.near_limit ? "near" : "";
+    } else {
+      pct = max > 0 ? (r.total / max) * 100 : 0;
+      cls = "";
+    }
     const div = document.createElement("div");
     div.className = "cat-row";
     div.innerHTML = `
-      <div class="cat-row-top"><span>${escapeHtml(r.category)}</span><span class="cat-amount">${money(r.total)}</span></div>
-      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(r.total / max) * 100}%"></div></div>
+      <div class="cat-row-top">
+        <span>${escapeHtml(r.category)}</span>
+        <span class="cat-amount ${cls}">
+          ${money(r.total)}${r.limit ? ` <span class="cat-limit">/ ${money(r.limit)}</span>` : ""}
+        </span>
+      </div>
+      <div class="cat-bar-track"><div class="cat-bar-fill ${cls}" style="width:${pct}%"></div></div>
     `;
     box.appendChild(div);
   });

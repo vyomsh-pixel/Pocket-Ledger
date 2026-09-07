@@ -358,18 +358,37 @@ def monthly_summary(conn, user_id: int, year_month: str = None) -> dict:
     income = float(totals["income"]) if totals else 0.0
     expense = float(totals["expense"]) if totals else 0.0
 
-    by_category = conn.execute(
-        "SELECT category, COALESCE(SUM(amount), 0) AS total FROM transactions "
-        "WHERE user_id = ? AND type='expense' AND date LIKE ? GROUP BY category ORDER BY total DESC",
+    by_category_rows = conn.execute(
+        "SELECT t.category, COALESCE(SUM(t.amount), 0) AS total, b.monthly_limit "
+        "FROM transactions t "
+        "LEFT JOIN budgets b ON b.user_id = t.user_id AND b.category = t.category "
+        "WHERE t.user_id = ? AND t.type='expense' AND t.date LIKE ? "
+        "GROUP BY t.category, b.monthly_limit "
+        "ORDER BY total DESC",
         (user_id, date_like),
     ).fetchall()
+
+    by_category = []
+    for r in by_category_rows:
+        total = float(r["total"])
+        limit = float(r["monthly_limit"]) if r["monthly_limit"] is not None else None
+        item = {"category": r["category"], "total": total, "limit": limit}
+        if limit is not None and limit > 0:
+            item["exceeded"] = total > limit
+            item["at_limit"] = total == limit
+            item["near_limit"] = 0.9 * limit <= total < limit
+        else:
+            item["exceeded"] = False
+            item["at_limit"] = False
+            item["near_limit"] = False
+        by_category.append(item)
 
     return {
         "month": year_month,
         "income": income,
         "expense": expense,
         "net": income - expense,
-        "by_category": [{"category": r["category"], "total": float(r["total"])} for r in by_category],
+        "by_category": by_category,
     }
 
 
