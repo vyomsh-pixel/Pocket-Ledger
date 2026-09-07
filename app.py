@@ -268,10 +268,12 @@ def api_set_budget(user_id):
 @app.route("/api/budgets/<path:category>", methods=["DELETE"])
 @login_required
 def api_delete_budget(user_id, category):
-    ok = services.delete_budget(db(), user_id, category)
+    from urllib.parse import unquote
+    clean_cat = unquote(category).strip()
+    ok = services.delete_budget(db(), user_id, clean_cat)
     if not ok:
-        return jsonify({"error": f"No budget set for category '{category}'."}), 404
-    return jsonify({"deleted": category})
+        return jsonify({"error": f"No budget set for category '{clean_cat}'."}), 404
+    return jsonify({"deleted": clean_cat})
 
 
 # ---------------------------------------------------------------------------

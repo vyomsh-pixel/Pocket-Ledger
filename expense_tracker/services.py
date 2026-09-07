@@ -75,8 +75,6 @@ def create_user(conn, username: str, password: str, template: str = "salaried", 
     if not user:
         raise ValidationError("Failed to create user.")
 
-    # Seed starter template budgets for clean user onboarding
-    seed_user_starter_template(conn, user.id, template)
     return user
 
 
@@ -141,7 +139,6 @@ def get_or_create_google_user(conn, google_id: str, email: str, name: str = "", 
     if not row:
         raise ValidationError("Failed to create Google user.")
     user = User.from_row(row)
-    seed_user_starter_template(conn, user.id, template)
     return user
 
 

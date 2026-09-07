@@ -91,7 +91,7 @@ class TestBudgets(unittest.TestCase):
         services.add_transaction(self.conn, self.user.id, date="2026-07-05", type="expense",
                                   category="Food", amount=120, note="Groceries")
         status = services.budget_status(self.conn, self.user.id, "2026-07")
-        self.assertEqual(len(status), 7) # 6 starter template + Food update
+        self.assertEqual(len(status), 1) # Explicitly set Food budget only
         food_status = next(s for s in status if s["category"] == "Food")
         self.assertTrue(food_status["exceeded"])
         self.assertAlmostEqual(food_status["spent"], 120)
