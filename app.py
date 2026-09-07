@@ -64,6 +64,16 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/favicon.ico")
+def favicon_ico():
+    return send_file(os.path.join(app.root_path, "static", "favicon.ico"), mimetype="image/x-icon")
+
+
+@app.route("/favicon.svg")
+def favicon_svg():
+    return send_file(os.path.join(app.root_path, "static", "favicon.svg"), mimetype="image/svg+xml")
+
+
 @app.route("/api/health", methods=["GET"])
 def api_health():
     from expense_tracker.db import PgConnWrapper

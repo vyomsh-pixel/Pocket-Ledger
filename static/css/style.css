@@ -83,6 +83,32 @@ html, body {
   border-bottom: 1px solid var(--line);
 }
 
+.brand-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.auth-logo-img {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+
 .ledger-head h1 {
   font-family: var(--serif);
   font-weight: 600;
