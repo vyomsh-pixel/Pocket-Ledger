@@ -20,23 +20,64 @@ if (typeof firebase !== "undefined" && window.FIREBASE_CONFIG.apiKey) {
 }
 
 
-const EXCHANGE_RATES = {
+/* ---------------------------------------------------------------------
+   Exchange Rates & Live Currency Engine
+--------------------------------------------------------------------- */
+const FALLBACK_EXCHANGE_RATES = {
   "$": 1.0,      // USD
-  "₹": 83.5,     // INR (1 USD = 83.5 INR)
-  "€": 0.92,     // EUR (1 USD = 0.92 EUR)
-  "£": 0.78,     // GBP (1 USD = 0.78 GBP)
-  "¥": 155.0,    // JPY (1 USD = 155 JPY)
-  "₩": 1380.0,   // KRW (1 USD = 1380 KRW)
-  "Fr": 0.90,    // CHF (1 USD = 0.90 CHF)
-  "R$": 5.50,    // BRL (1 USD = 5.50 BRL)
-  "kr": 10.50,   // SEK (1 USD = 10.50 SEK)
-  "zł": 3.95     // PLN (1 USD = 3.95 PLN)
+  "₹": 94.49,    // INR (September 2026 Market Rate)
+  "€": 0.86,     // EUR
+  "£": 0.74,     // GBP (150 USD = 110.98 GBP)
+  "¥": 155.0,    // JPY
+  "₩": 1345.0,   // KRW
+  "Fr": 0.81,    // CHF
+  "R$": 5.13,    // BRL
+  "kr": 9.60,    // SEK
+  "zł": 3.71     // PLN
 };
+
+const SYMBOL_TO_CODE = {
+  "$": "USD",
+  "₹": "INR",
+  "€": "EUR",
+  "£": "GBP",
+  "¥": "JPY",
+  "₩": "KRW",
+  "Fr": "CHF",
+  "R$": "BRL",
+  "kr": "SEK",
+  "zł": "PLN"
+};
+
+const exchangeRates = { ...FALLBACK_EXCHANGE_RATES };
+
+async function fetchLiveRates() {
+  try {
+    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.rates) {
+      Object.keys(SYMBOL_TO_CODE).forEach((sym) => {
+        const code = SYMBOL_TO_CODE[sym];
+        if (data.rates[code]) {
+          exchangeRates[sym] = data.rates[code];
+        }
+      });
+      if (typeof state !== "undefined" && state.user) {
+        refreshAll();
+      }
+    }
+  } catch (_) {
+    // Keep fallback rates
+  }
+}
+
+fetchLiveRates();
 
 const fmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money = (n) => {
   const symbol = state.user?.currency || "$";
-  const rate = EXCHANGE_RATES[symbol] || 1.0;
+  const rate = exchangeRates[symbol] || 1.0;
   const val = (Number(n) || 0) * rate;
   return symbol + fmt.format(val);
 };
