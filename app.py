@@ -253,7 +253,9 @@ def api_analytics(user_id):
 @app.route("/api/export", methods=["GET"])
 @login_required
 def api_export(user_id):
-    path = f"_export_{user_id}.csv"
+    import tempfile
+    tmp_dir = tempfile.gettempdir()
+    path = os.path.join(tmp_dir, f"_export_{user_id}.csv")
     import_export.export_csv(db(), user_id, path)
     with open(path, "rb") as f:
         data = f.read()
@@ -266,10 +268,12 @@ def api_export(user_id):
 @app.route("/api/import", methods=["POST"])
 @login_required
 def api_import(user_id):
+    import tempfile
     file = request.files.get("file")
     if not file:
         return jsonify({"error": "No file uploaded."}), 400
-    tmp_path = f"_import_{user_id}.csv"
+    tmp_dir = tempfile.gettempdir()
+    tmp_path = os.path.join(tmp_dir, f"_import_{user_id}.csv")
     file.save(tmp_path)
     successes, errors = import_export.import_csv(db(), user_id, tmp_path)
     if os.path.exists(tmp_path):

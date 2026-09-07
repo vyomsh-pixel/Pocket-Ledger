@@ -41,8 +41,9 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_cat ON transactions(user_id, ca
 
 
 class PgCursorWrapper:
-    def __init__(self, cursor):
+    def __init__(self, cursor, lastrowid=None):
         self.cursor = cursor
+        self._lastrowid = lastrowid
 
     def fetchone(self):
         return self.cursor.fetchone()
@@ -52,7 +53,7 @@ class PgCursorWrapper:
 
     @property
     def lastrowid(self):
-        return getattr(self.cursor, "lastrowid", None) or 1
+        return self._lastrowid
 
     @property
     def rowcount(self):
@@ -63,26 +64,40 @@ class PgConnWrapper:
     def __init__(self, pg_conn):
         self.conn = pg_conn
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
     def execute(self, sql, params=()):
         cur = self.conn.cursor()
         pg_sql = sql.replace("?", "%s")
         if pg_sql.strip().upper().startswith("PRAGMA"):
             return PgCursorWrapper(cur)
 
-        if "INSERT INTO users" in sql and "RETURNING" not in pg_sql:
-            pg_sql += " RETURNING id"
-        elif "INSERT INTO transactions" in sql and "RETURNING" not in pg_sql:
+        lastrowid = None
+        if ("INSERT INTO users" in sql or "INSERT INTO transactions" in sql) and "RETURNING" not in pg_sql:
             pg_sql += " RETURNING id"
 
         cur.execute(pg_sql, params or ())
-        if "RETURNING id" in pg_sql:
+        if "RETURNING" in pg_sql:
             try:
                 row = cur.fetchone()
-                if row and "id" in row:
-                    cur.lastrowid = row["id"]
+                if row:
+                    if isinstance(row, dict) and "id" in row:
+                        lastrowid = row["id"]
+                    elif hasattr(row, "__getitem__"):
+                        lastrowid = row[0] if isinstance(row, (tuple, list)) else getattr(row, "id", None)
             except Exception:
                 pass
-        return PgCursorWrapper(cur)
+        return PgCursorWrapper(cur, lastrowid=lastrowid)
 
     def commit(self):
         self.conn.commit()
