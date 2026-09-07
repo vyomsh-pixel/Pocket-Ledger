@@ -128,7 +128,10 @@ def get_connection(db_path: str = "pocketledger.db"):
             import psycopg2.extras
             if db_url.startswith("postgres://"):
                 db_url = db_url.replace("postgres://", "postgresql://", 1)
-            pg_conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor, connect_timeout=10)
+            conn_kwargs = {"cursor_factory": psycopg2.extras.RealDictCursor, "connect_timeout": 10}
+            if "sslmode" not in db_url:
+                conn_kwargs["sslmode"] = "prefer"
+            pg_conn = psycopg2.connect(db_url, **conn_kwargs)
             conn = PgConnWrapper(pg_conn)
             conn.executescript(SCHEMA)
             return conn
