@@ -1,0 +1,24 @@
+# SQLite Databases & Concurrency Journal Files
+*.db
+*.db-wal
+*.db-shm
+pocketledger.db
+
+# Python Bytecode & Environments
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+env/
+venv/
+
+# Temporary CSV Exports & Imports
+_export_*.csv
+_import_*.csv
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
