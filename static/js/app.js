@@ -431,19 +431,27 @@ el("entryCancel").addEventListener("click", resetEntryForm);
 
 entryForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const rawAmt = parseFloat(entryForm.amount.value) || 0;
+  if (!rawAmt) return;
+
   const payload = {
     date: entryForm.date.value,
     type: entryForm.type.value,
     category: entryForm.category.value,
-    amount: entryForm.amount.value,
+    amount: rawAmt,
     note: entryForm.note.value,
   };
 
   const isEdit = Boolean(state.editingId);
   const editId = state.editingId;
+
+  // 1. Instant 0ms UI Feedback
   resetEntryForm();
   toast(isEdit ? "Entry updated." : "Entry added.");
+  const empty = el("txEmpty");
+  if (empty) empty.hidden = true;
 
+  // 2. Async backend sync
   try {
     let result;
     if (isEdit) {
@@ -774,19 +782,20 @@ submitImportBtn.addEventListener("click", async () => {
 });
 
 async function duplicateTransaction(tx) {
+  toast("Entry duplicated.");
   try {
     const res = await api(`/api/transactions/${tx.id}/duplicate`, { method: "POST" });
-    toast("Entry duplicated.");
-    if (res.alert) {
+    if (res && res.alert) {
       const a = res.alert;
       const msg = a.exceeded
         ? `Budget alert — ${a.category} is over its limit (${money(a.spent)} / ${money(a.limit)}).`
         : `Heads up — ${a.category} is near its limit (${money(a.spent)} / ${money(a.limit)}).`;
       toast(msg, true);
     }
-    await refreshAll();
+    refreshAll();
   } catch (err) {
     toast(err.message, true);
+    refreshAll();
   }
 }
 

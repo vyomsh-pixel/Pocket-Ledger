@@ -341,20 +341,23 @@ def monthly_summary(conn, user_id: int, year_month: str = None) -> dict:
     if year_month is None:
         year_month = datetime.today().strftime("%Y-%m")
 
-    income = conn.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM transactions "
-        "WHERE user_id = ? AND type='income' AND date LIKE ?", (user_id, f"{year_month}%")
-    ).fetchone()["t"]
+    date_like = f"{year_month}%"
 
-    expense = conn.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM transactions "
-        "WHERE user_id = ? AND type='expense' AND date LIKE ?", (user_id, f"{year_month}%")
-    ).fetchone()["t"]
+    totals = conn.execute(
+        "SELECT "
+        "COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) AS income, "
+        "COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) AS expense "
+        "FROM transactions WHERE user_id = ? AND date LIKE ?",
+        (user_id, date_like),
+    ).fetchone()
+
+    income = float(totals["income"]) if totals else 0.0
+    expense = float(totals["expense"]) if totals else 0.0
 
     by_category = conn.execute(
-        "SELECT category, COALESCE(SUM(amount),0) AS total FROM transactions "
+        "SELECT category, COALESCE(SUM(amount), 0) AS total FROM transactions "
         "WHERE user_id = ? AND type='expense' AND date LIKE ? GROUP BY category ORDER BY total DESC",
-        (user_id, f"{year_month}%"),
+        (user_id, date_like),
     ).fetchall()
 
     return {
@@ -362,7 +365,7 @@ def monthly_summary(conn, user_id: int, year_month: str = None) -> dict:
         "income": income,
         "expense": expense,
         "net": income - expense,
-        "by_category": [{"category": r["category"], "total": r["total"]} for r in by_category],
+        "by_category": [{"category": r["category"], "total": float(r["total"])} for r in by_category],
     }
 
 
