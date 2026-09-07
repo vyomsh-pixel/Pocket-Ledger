@@ -260,9 +260,11 @@ if (fxToggleBtn) {
 // ---------------------------------------------------------------------
 // Rendering: summary / hero
 // ---------------------------------------------------------------------
-async function refreshSummary() {
-  if (!state.user) return;
-  const s = await api(`/api/summary?month=${state.month}`);
+// ---------------------------------------------------------------------
+// Rendering: summary / hero
+// ---------------------------------------------------------------------
+function updateSummaryDOM(s) {
+  state.currentSummary = s;
   el("netBalance").textContent = money(s.net);
   el("totalIncome").textContent = money(s.income);
   el("totalExpense").textContent = money(s.expense);
@@ -284,10 +286,14 @@ async function refreshSummary() {
   if (sbSav) sbSav.textContent = `${savingsRate}%`;
   if (sbPace) sbPace.textContent = `${money(dailyPace)}/day`;
 
-  // Update Persona Tag
   updatePersonaTag(savingsRate);
-
   renderCategoryBreakdown(s);
+}
+
+async function refreshSummary() {
+  if (!state.user) return;
+  const s = await api(`/api/summary?month=${state.month}`);
+  updateSummaryDOM(s);
 }
 
 function updatePersonaTag(savingsRate) {
@@ -329,6 +335,47 @@ function renderCategoryBreakdown(summary) {
 // ---------------------------------------------------------------------
 // Rendering: transactions
 // ---------------------------------------------------------------------
+function createTxRowElement(tx) {
+  const row = document.createElement("div");
+  row.className = `tx-row ${tx.type}`;
+  row.dataset.id = tx.id;
+  const sign = tx.type === "income" ? "+" : "\u2212";
+
+  row.innerHTML = `
+    <span class="cell-date">${formatDay(tx.date)}</span>
+    <span class="cell-category">
+      ${escapeHtml(tx.category)}
+      ${tx.note ? `<div class="cell-note-mobile">${escapeHtml(tx.note)}</div>` : ""}
+    </span>
+    <span class="cell-note">${escapeHtml(tx.note || "")}</span>
+    <span class="cell-amount blur-target">${sign}${money(tx.amount)}</span>
+    <span class="cell-actions">
+      <button class="tx-edit" title="Edit entry" data-id="${tx.id}">✎</button>
+      <button class="tx-dup" title="Duplicate entry" data-id="${tx.id}">↻</button>
+      <button class="tx-delete" title="Delete" data-id="${tx.id}">&times;</button>
+    </span>
+  `;
+
+  row.querySelector(".cell-date").addEventListener("click", () => startEdit(tx));
+  row.querySelector(".cell-category").addEventListener("click", () => startEdit(tx));
+  row.querySelector(".cell-note").addEventListener("click", () => startEdit(tx));
+  row.querySelector(".cell-amount").addEventListener("click", () => startEdit(tx));
+  row.querySelector(".tx-edit").addEventListener("click", (e) => {
+    e.stopPropagation();
+    startEdit(tx);
+  });
+  row.querySelector(".tx-dup").addEventListener("click", (e) => {
+    e.stopPropagation();
+    duplicateTransaction(tx);
+  });
+  row.querySelector(".tx-delete").addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteTransaction(tx);
+  });
+
+  return row;
+}
+
 async function refreshTransactions() {
   const { start, end } = monthRange();
   const q = el("searchBox").value.trim();
@@ -349,43 +396,7 @@ async function refreshTransactions() {
   empty.hidden = true;
 
   rows.forEach((tx) => {
-    const row = document.createElement("div");
-    row.className = `tx-row ${tx.type}`;
-    row.dataset.id = tx.id;
-    const sign = tx.type === "income" ? "+" : "\u2212";
-
-    row.innerHTML = `
-      <span class="cell-date">${formatDay(tx.date)}</span>
-      <span class="cell-category">
-        ${escapeHtml(tx.category)}
-        ${tx.note ? `<div class="cell-note-mobile">${escapeHtml(tx.note)}</div>` : ""}
-      </span>
-      <span class="cell-note">${escapeHtml(tx.note || "")}</span>
-      <span class="cell-amount blur-target">${sign}${money(tx.amount)}</span>
-      <span class="cell-actions">
-        <button class="tx-edit" title="Edit entry" data-id="${tx.id}">✎</button>
-        <button class="tx-dup" title="Duplicate entry" data-id="${tx.id}">↻</button>
-        <button class="tx-delete" title="Delete" data-id="${tx.id}">&times;</button>
-      </span>
-    `;
-
-    row.querySelector(".cell-date").addEventListener("click", () => startEdit(tx));
-    row.querySelector(".cell-category").addEventListener("click", () => startEdit(tx));
-    row.querySelector(".cell-note").addEventListener("click", () => startEdit(tx));
-    row.querySelector(".cell-amount").addEventListener("click", () => startEdit(tx));
-    row.querySelector(".tx-edit").addEventListener("click", (e) => {
-      e.stopPropagation();
-      startEdit(tx);
-    });
-    row.querySelector(".tx-dup").addEventListener("click", (e) => {
-      e.stopPropagation();
-      duplicateTransaction(tx);
-    });
-    row.querySelector(".tx-delete").addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteTransaction(tx);
-    });
-    list.appendChild(row);
+    list.appendChild(createTxRowElement(tx));
   });
 }
 
@@ -437,19 +448,52 @@ entryForm.addEventListener("submit", async (e) => {
   const payload = {
     date: entryForm.date.value,
     type: entryForm.type.value,
-    category: entryForm.category.value,
+    category: entryForm.category.value.trim(),
     amount: rawAmt,
-    note: entryForm.note.value,
+    note: entryForm.note.value.trim(),
   };
 
   const isEdit = Boolean(state.editingId);
   const editId = state.editingId;
 
-  // 1. Instant 0ms UI Feedback
-  resetEntryForm();
-  toast(isEdit ? "Entry updated." : "Entry added.");
+  // 1. INSTANT 0ms DOM ROW INSERTION & HERO BALANCE MATH
+  const list = el("txList");
   const empty = el("txEmpty");
   if (empty) empty.hidden = true;
+
+  const tempTx = {
+    id: editId || ("temp_" + Date.now()),
+    date: payload.date,
+    type: payload.type,
+    category: payload.category.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" "),
+    amount: payload.amount,
+    note: payload.note,
+  };
+
+  if (isEdit) {
+    const oldRow = document.querySelector(`.tx-row[data-id="${editId}"]`);
+    if (oldRow) {
+      const newRow = createTxRowElement(tempTx);
+      list.replaceChild(newRow, oldRow);
+    }
+  } else {
+    const newRow = createTxRowElement(tempTx);
+    list.insertBefore(newRow, list.firstChild);
+  }
+
+  if (state.currentSummary) {
+    if (payload.type === "income") {
+      state.currentSummary.income += payload.amount;
+      state.currentSummary.net += payload.amount;
+    } else {
+      state.currentSummary.expense += payload.amount;
+      state.currentSummary.net -= payload.amount;
+    }
+    updateSummaryDOM(state.currentSummary);
+  }
+
+  resetEntryForm();
+  toast(isEdit ? "Entry updated." : "Entry added.");
 
   // 2. Async backend sync
   try {
@@ -459,6 +503,12 @@ entryForm.addEventListener("submit", async (e) => {
     } else {
       result = await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
     }
+
+    if (result && result.transaction) {
+      const tempRow = document.querySelector(`.tx-row[data-id="${tempTx.id}"]`);
+      if (tempRow) tempRow.dataset.id = result.transaction.id;
+    }
+
     if (result && result.alert) {
       const a = result.alert;
       const msg = a.exceeded
