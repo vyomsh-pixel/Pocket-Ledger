@@ -20,8 +20,26 @@ if (typeof firebase !== "undefined" && window.FIREBASE_CONFIG.apiKey) {
 }
 
 
+const EXCHANGE_RATES = {
+  "$": 1.0,      // USD
+  "₹": 83.5,     // INR (1 USD = 83.5 INR)
+  "€": 0.92,     // EUR (1 USD = 0.92 EUR)
+  "£": 0.78,     // GBP (1 USD = 0.78 GBP)
+  "¥": 155.0,    // JPY (1 USD = 155 JPY)
+  "₩": 1380.0,   // KRW (1 USD = 1380 KRW)
+  "Fr": 0.90,    // CHF (1 USD = 0.90 CHF)
+  "R$": 5.50,    // BRL (1 USD = 5.50 BRL)
+  "kr": 10.50,   // SEK (1 USD = 10.50 SEK)
+  "zł": 3.95     // PLN (1 USD = 3.95 PLN)
+};
+
 const fmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const money = (n) => (state.user?.currency || "$") + fmt.format(Number(n) || 0);
+const money = (n) => {
+  const symbol = state.user?.currency || "$";
+  const rate = EXCHANGE_RATES[symbol] || 1.0;
+  const val = (Number(n) || 0) * rate;
+  return symbol + fmt.format(val);
+};
 
 
 

@@ -129,18 +129,27 @@ def get_or_create_google_user(conn, google_id: str, email: str, name: str = "", 
     # 3. Create new user for Google Sign In
     now_str = today_iso()
     pwd_hash = generate_password_hash(f"google_oauth_{google_id}")
-    cur = conn.execute(
+    conn.execute(
         "INSERT INTO users (username, password_hash, created_at, currency, google_id) VALUES (?, ?, ?, ?, ?)",
         (email, pwd_hash, now_str, currency, google_id),
     )
     conn.commit()
 
-    user = get_user_by_id(conn, cur.lastrowid)
+    row = conn.execute("SELECT * FROM users WHERE google_id = ?", (google_id,)).fetchone()
+    if not row:
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (email,)).fetchone()
+    if not row:
+        raise ValidationError("Failed to create Google user.")
+    user = User.from_row(row)
     seed_user_starter_template(conn, user.id, template)
     return user
 
 
 def get_user_by_id(conn, user_id: int) -> Optional[User]:
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return None
     row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     return User.from_row(row) if row else None
 

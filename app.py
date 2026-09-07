@@ -73,6 +73,7 @@ def api_register():
     currency = d.get("currency", "$")
     user = services.create_user(db(), username, password, template, currency)
     session["user_id"] = user.id
+    session["username"] = user.username
     return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}}), 201
 
 
@@ -85,6 +86,7 @@ def api_login():
     if not user:
         return jsonify({"error": "Invalid username or password."}), 401
     session["user_id"] = user.id
+    session["username"] = user.username
     return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}})
 
 
@@ -105,6 +107,7 @@ def api_google_auth():
 
     user = services.get_or_create_google_user(db(), google_id=google_id, email=email, name=name, template=template, currency=currency)
     session["user_id"] = user.id
+    session["username"] = user.username
     return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}})
 
 
@@ -112,9 +115,12 @@ def api_google_auth():
 @app.route("/api/auth/me", methods=["GET"])
 def api_auth_me():
     user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"user": None})
-    user = services.get_user_by_id(db(), user_id)
+    user = services.get_user_by_id(db(), user_id) if user_id else None
+    if not user and session.get("username"):
+        row = db().execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
+        if row:
+            user = services.User.from_row(row)
+            session["user_id"] = user.id
     if not user:
         session.clear()
         return jsonify({"user": None})
@@ -126,8 +132,16 @@ def api_auth_me():
 def api_update_currency(user_id):
     d = request.get_json(force=True)
     new_curr = d.get("currency", "$")
-    user = services.update_user_currency(db(), user_id, new_curr)
-    return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}})
+    user = services.get_user_by_id(db(), user_id)
+    if not user and session.get("username"):
+        row = db().execute("SELECT * FROM users WHERE username = ?", (session["username"],)).fetchone()
+        if row:
+            user = services.User.from_row(row)
+            session["user_id"] = user.id
+    if not user:
+        return jsonify({"error": "User session expired. Please sign in again."}), 401
+    updated = services.update_user_currency(db(), user.id, new_curr)
+    return jsonify({"user": {"id": updated.id, "username": updated.username, "created_at": updated.created_at, "currency": updated.currency}})
 
 
 
