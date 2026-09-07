@@ -98,7 +98,10 @@ class PgConnWrapper:
             pg_sql = pg_sql.replace("REAL", "DOUBLE PRECISION")
             pg_sql = pg_sql.replace("TEXT", "VARCHAR(255)")
             pg_sql = pg_sql.replace("?", "%s")
-            cur.execute(pg_sql)
+            try:
+                cur.execute(pg_sql)
+            except Exception:
+                pass
         self.conn.commit()
 
 
@@ -110,14 +113,17 @@ def get_connection(db_path: str = "pocketledger.db"):
             import psycopg2.extras
             if db_url.startswith("postgres://"):
                 db_url = db_url.replace("postgres://", "postgresql://", 1)
-            pg_conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor)
+            pg_conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor, connect_timeout=10)
             conn = PgConnWrapper(pg_conn)
             conn.executescript(SCHEMA)
             return conn
         except Exception as e:
-            print("PostgreSQL connection error, falling back to SQLite:", e)
+            print("PostgreSQL connection failed, using local/serverless fallback:", e)
 
-    # Local SQLite fallback
+    # Vercel Serverless Writable Path Fallback
+    if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) and db_path == "pocketledger.db":
+        db_path = "/tmp/pocketledger.db"
+
     if db_path != ":memory:" and Path(db_path).parent != Path(""):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -157,8 +163,11 @@ def get_connection(db_path: str = "pocketledger.db"):
     """
 
     if db_path != ":memory:":
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL;")
+            conn.execute("PRAGMA synchronous = NORMAL;")
+        except Exception:
+            pass
     conn.executescript(SQLITE_SCHEMA)
     conn.commit()
     return conn
