@@ -67,12 +67,30 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def api_health():
     from expense_tracker.db import PgConnWrapper
+    db_url = os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL")
+    pg_err = None
+    if db_url:
+        try:
+            import psycopg2
+            import psycopg2.extras
+            test_url = db_url
+            if test_url.startswith("postgres://"):
+                test_url = test_url.replace("postgres://", "postgresql://", 1)
+            conn_kwargs = {"cursor_factory": psycopg2.extras.RealDictCursor, "connect_timeout": 10}
+            if "sslmode" not in test_url:
+                conn_kwargs["sslmode"] = "prefer"
+            test_conn = psycopg2.connect(test_url, **conn_kwargs)
+            test_conn.close()
+        except Exception as e:
+            pg_err = str(e)
+
     conn = db()
     is_pg = isinstance(conn, PgConnWrapper)
     return jsonify({
         "status": "ok",
         "database": "postgresql" if is_pg else "sqlite (ephemeral)",
-        "env_has_db_url": bool(os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL"))
+        "env_has_db_url": bool(db_url),
+        "pg_error": pg_err
     })
 
 
