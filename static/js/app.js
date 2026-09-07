@@ -77,7 +77,7 @@ fetchLiveRates();
 const fmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money = (n) => {
   const symbol = state.user?.currency || "$";
-  const rate = exchangeRates[symbol] || 1.0;
+  const rate = state.convertFx ? (exchangeRates[symbol] || 1.0) : 1.0;
   const val = (Number(n) || 0) * rate;
   return symbol + fmt.format(val);
 };
@@ -94,6 +94,7 @@ const state = {
   editingId: null,
   selectedImportFile: null,
   budgetedCategories: [],
+  convertFx: localStorage.getItem("pocketledger_fx") === "true", // false by default (Nominal 1:1 direct numbers)
 };
 
 const el = (id) => document.getElementById(id);
@@ -236,6 +237,25 @@ function applyPrivacy(isPrivate) {
 }
 
 el("privacyToggleBtn").addEventListener("click", () => applyPrivacy(!state.privacy));
+
+// ---------------------------------------------------------------------
+// FX Mode Toggle (Nominal 1:1 vs Live Rate Conversion)
+// ---------------------------------------------------------------------
+function applyFx(isFxLive) {
+  state.convertFx = isFxLive;
+  localStorage.setItem("pocketledger_fx", isFxLive ? "true" : "false");
+  const btn = el("fxToggleBtn");
+  if (btn) btn.textContent = `fx: ${isFxLive ? "live" : "off"}`;
+  refreshAll();
+}
+
+const fxToggleBtn = el("fxToggleBtn");
+if (fxToggleBtn) {
+  fxToggleBtn.addEventListener("click", () => {
+    applyFx(!state.convertFx);
+    toast(state.convertFx ? "FX Live Rate Mode ON" : "Nominal Mode (1:1 direct amounts) ON");
+  });
+}
 
 // ---------------------------------------------------------------------
 // Rendering: summary / hero
@@ -712,6 +732,8 @@ document.addEventListener("keydown", (e) => {
     switchTab("budgets");
   } else if (key === "p") {
     applyPrivacy(!state.privacy);
+  } else if (key === "x") {
+    applyFx(!state.convertFx);
   }
 
 });
@@ -805,7 +827,14 @@ if (userCurrencySelect) {
     try {
       const res = await api("/api/user/currency", { method: "PUT", body: JSON.stringify({ currency: newCurr }) });
       state.user.currency = res.user.currency;
-      toast(`Currency updated to ${res.user.currency}`);
+
+      const promptLabel = state.convertFx ? "Switch to 1:1 Direct Amounts" : "Enable Live FX Rates";
+      toast(`Currency changed to ${res.user.currency}`, false, {
+        text: promptLabel,
+        onClick: () => {
+          applyFx(!state.convertFx);
+        }
+      });
       await refreshAll();
     } catch (err) {
       toast(err.message, true);
@@ -950,6 +979,7 @@ if (logoutBtn) {
 }
 
 applyPrivacy(localStorage.getItem("pocketledger_privacy") === "true");
+applyFx(localStorage.getItem("pocketledger_fx") === "true");
 resetEntryForm();
 el("monthLabel").textContent = monthLabel();
 checkAuth();
