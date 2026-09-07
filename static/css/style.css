@@ -94,7 +94,10 @@ html, body {
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
 }
 
 .user-badge {
@@ -106,11 +109,61 @@ html, body {
   padding: 4px 10px;
   border-radius: 2px;
   font-size: 11.5px;
+  max-width: 100%;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .user-name {
   color: var(--ink);
   font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.header-currency-select {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 2px 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.header-currency-select:focus {
+  border-color: var(--brass-dim);
+}
+
+.privacy-btn, .fx-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.privacy-btn:hover, .fx-btn:hover {
+  color: var(--ink);
+  border-color: var(--line-soft);
+}
+
+.privacy-btn.active, .fx-btn.active {
+  color: var(--brass);
+  border-color: var(--brass-dim);
+  background: rgba(212, 175, 55, 0.08);
 }
 
 .persona-tag {
@@ -121,6 +174,8 @@ html, body {
   border-radius: 2px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .logout-btn {
@@ -128,6 +183,8 @@ html, body {
   padding: 0 4px;
   color: var(--brick);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .logout-btn:hover { text-decoration: underline; }
@@ -1105,6 +1162,33 @@ button[type="submit"]:hover, .link-btn:hover { background: var(--focus); }
 .google-auth-btn:hover {
   background: #1a1a22;
   border-color: var(--brass-dim);
+}
+
+/* ---------------- Privacy Blur & Responsive Fixes ---------------- */
+
+.blur-target {
+  transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+body.privacy-mode .blur-target {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .workspace-layout {
+    flex-direction: column;
+  }
+  .ledger-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .header-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 

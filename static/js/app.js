@@ -233,7 +233,10 @@ function applyPrivacy(isPrivate) {
   localStorage.setItem("pocketledger_privacy", isPrivate ? "true" : "false");
   document.body.classList.toggle("privacy-mode", isPrivate);
   const btn = el("privacyToggleBtn");
-  if (btn) btn.textContent = `privacy: ${isPrivate ? "on" : "off"}`;
+  if (btn) {
+    btn.textContent = `privacy: ${isPrivate ? "on" : "off"}`;
+    btn.classList.toggle("active", isPrivate);
+  }
 }
 
 el("privacyToggleBtn").addEventListener("click", () => applyPrivacy(!state.privacy));
@@ -245,7 +248,10 @@ function applyFx(isFxLive) {
   state.convertFx = isFxLive;
   localStorage.setItem("pocketledger_fx", isFxLive ? "true" : "false");
   const btn = el("fxToggleBtn");
-  if (btn) btn.textContent = `fx: ${isFxLive ? "live" : "off"}`;
+  if (btn) {
+    btn.textContent = `fx: ${isFxLive ? "live" : "off"}`;
+    btn.classList.toggle("active", isFxLive);
+  }
   refreshAll();
 }
 
@@ -335,7 +341,7 @@ function renderCategoryBreakdown(summary) {
     div.innerHTML = `
       <div class="cat-row-top">
         <span>${escapeHtml(r.category)}</span>
-        <span class="cat-amount ${cls}">
+        <span class="cat-amount ${cls} blur-target">
           ${money(r.total)}${r.limit ? ` <span class="cat-limit">/ ${money(r.limit)}</span>` : ""}
         </span>
       </div>
@@ -947,6 +953,7 @@ async function checkAuth() {
       if (showAuthBtn) showAuthBtn.hidden = true;
       el("userBadge").hidden = false;
       el("userNameLabel").textContent = res.user.username;
+      el("userNameLabel").title = res.user.username;
 
       const currSel = el("userCurrencySelect");
       if (currSel && res.user.currency) {
@@ -1037,6 +1044,7 @@ if (authForm) {
       if (showBtn) showBtn.hidden = true;
       el("userBadge").hidden = false;
       el("userNameLabel").textContent = res.user.username;
+      el("userNameLabel").title = res.user.username;
       const currSel = el("userCurrencySelect");
       if (currSel && res.user.currency) {
         currSel.value = res.user.currency;
@@ -1106,6 +1114,7 @@ if (googleAuthBtn) {
       if (showBtn) showBtn.hidden = true;
       el("userBadge").hidden = false;
       el("userNameLabel").textContent = res.user.username;
+      el("userNameLabel").title = res.user.username;
       const currSel = el("userCurrencySelect");
       if (currSel && res.user.currency) {
         currSel.value = res.user.currency;
