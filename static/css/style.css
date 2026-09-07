@@ -967,24 +967,45 @@ button[type="submit"]:hover, .link-btn:hover { background: var(--focus); }
 @media (max-width: 640px) {
   .desk { padding: 0; }
   .ledger { border: none; border-radius: 0; }
-  .ledger-head { padding: 20px 18px 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
-  .header-controls { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+  .ledger-head { padding: 16px 16px 12px; flex-direction: column; align-items: stretch; gap: 12px; }
+  .header-controls { display: flex; width: 100%; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .user-badge { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
   .ledger-head h1 { font-size: 22px; }
-  .month-nav { font-size: 12px; gap: 10px; }
-  .balance-hero { padding: 22px 18px 20px; }
-  .balance-amount { font-size: 34px; }
-  .balance-sub { flex-wrap: wrap; }
-  .tabs { padding: 0 18px; gap: 16px; }
-  .tab-panel { padding: 20px 18px 26px; }
-  .tx-head-row, .tx-row { grid-template-columns: 56px 1fr 80px 48px; }
-  .col-note, .cell-note { display: none; }
-  .cell-note-mobile { display: block; font-size: 11px; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-  .entry-form { flex-direction: column; align-items: stretch; }
-  .form-row-top, .form-row-bottom { flex-direction: column; align-items: stretch; gap: 10px; }
+  .month-nav { font-size: 13px; gap: 8px; }
+  .month-nav button { width: 32px; height: 32px; font-size: 16px; }
+  .balance-hero { padding: 20px 16px 18px; }
+  .balance-amount { font-size: clamp(32px, 8vw, 44px); }
+  .balance-sub { flex-wrap: wrap; gap: 8px; }
+  .pill { font-size: 11.5px; padding: 6px 10px; }
+  .tabs { padding: 0 16px; gap: 16px; overflow-x: auto; }
+  .tab { padding: 12px 4px; font-size: 14px; white-space: nowrap; }
+  .tab-panel { padding: 18px 16px 24px; }
+  
+  /* Mobile Input & Touch Ergonomics */
+  input, select { font-size: 16px !important; min-height: 42px; }
+  .entry-form { flex-direction: column; align-items: stretch; gap: 12px; }
+  .form-row-top, .form-row-bottom { flex-direction: column; align-items: stretch; gap: 12px; }
   .field, .date-field, .type-field, .category-field, .amount-field, .note-field, .chips-field, .submit-field {
     flex: 0 0 auto;
     width: 100%;
   }
+  .quick-amount-chips { height: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .chip-btn { height: 42px; font-size: 13px; }
+  button[type="submit"], .auth-submit-btn, .google-auth-btn { width: 100%; height: 44px; font-size: 15px; }
+
+  /* Mobile Transaction Table */
+  .tx-head-row, .tx-row { grid-template-columns: 52px 1fr 90px 60px; gap: 8px; }
+  .col-note, .cell-note { display: none; }
+  .cell-date { font-size: 11.5px; }
+  .cell-category { font-size: 13.5px; font-weight: 500; }
+  .cell-note-mobile { display: block; font-size: 11px; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .cell-amount { font-size: 13.5px; }
+  .cell-actions { gap: 6px; }
+  .tx-edit, .tx-dup, .tx-delete { width: 28px; height: 28px; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Mobile Sidebar */
+  .insights-sidebar { padding: 0 16px 24px; }
+  .sidebar-card { padding: 16px 18px; }
 }
 
 .header-currency-select {
