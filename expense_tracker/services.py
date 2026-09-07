@@ -307,20 +307,28 @@ def budget_status(conn, user_id: int, year_month: str = None) -> list[dict]:
     if year_month is None:
         year_month = datetime.today().strftime("%Y-%m")
 
+    date_like = f"{year_month}%"
+    rows = conn.execute(
+        "SELECT b.category, b.monthly_limit, COALESCE(SUM(t.amount), 0) AS spent "
+        "FROM budgets b "
+        "LEFT JOIN transactions t ON t.user_id = b.user_id AND t.category = b.category AND t.type = 'expense' AND t.date LIKE ? "
+        "WHERE b.user_id = ? "
+        "GROUP BY b.category, b.monthly_limit "
+        "ORDER BY b.category",
+        (date_like, user_id),
+    ).fetchall()
+
     results = []
-    for budget in list_budgets(conn, user_id):
-        spent = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions "
-            "WHERE user_id = ? AND type = 'expense' AND category = ? AND date LIKE ?",
-            (user_id, budget.category, f"{year_month}%"),
-        ).fetchone()["total"]
+    for r in rows:
+        limit = float(r["monthly_limit"])
+        spent = float(r["spent"])
         results.append({
-            "category": budget.category,
-            "limit": budget.monthly_limit,
+            "category": r["category"],
+            "limit": limit,
             "spent": spent,
-            "remaining": budget.monthly_limit - spent,
-            "exceeded": spent > budget.monthly_limit,
-            "near_limit": 0.9 * budget.monthly_limit <= spent <= budget.monthly_limit,
+            "remaining": limit - spent,
+            "exceeded": spent > limit,
+            "near_limit": 0.9 * limit <= spent <= limit,
         })
     return results
 

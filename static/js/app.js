@@ -587,9 +587,54 @@ budgetForm.addEventListener("submit", async (e) => {
   const limitVal = parseFloat(budgetForm.monthly_limit.value);
   if (!cat || !limitVal) return;
 
+  // 1. Optimistic DOM Insertion (0ms Instant response)
+  const list = el("budgetList");
+  const empty = el("budgetEmpty");
+  if (empty) empty.hidden = true;
+
+  const formattedCat = cat.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+  let existingRow = Array.from(list.querySelectorAll(".budget-row")).find(r => {
+    const btn = r.querySelector(".budget-delete");
+    return btn && btn.dataset && btn.dataset.category && btn.dataset.category.toLowerCase() === cat.toLowerCase();
+  });
+
+  if (existingRow) {
+    const amountsEl = existingRow.querySelector(".amounts");
+    if (amountsEl) {
+      amountsEl.innerHTML = `<span class="budget-pct">0% used</span> ${money(0)} / ${money(limitVal)} <button class="budget-delete" title="Delete budget" data-category="${escapeHtml(formattedCat)}">&times;</button>`;
+      amountsEl.querySelector(".budget-delete").addEventListener("click", (ev) => { ev.stopPropagation(); deleteBudget(formattedCat); });
+    }
+  } else {
+    const div = document.createElement("div");
+    div.className = "budget-row";
+    div.innerHTML = `
+      <div class="budget-row-top">
+        <span>${escapeHtml(formattedCat)}</span>
+        <span class="amounts">
+          <span class="budget-pct">0% used</span>
+          ${money(0)} / ${money(limitVal)}
+          <button class="budget-delete" title="Delete budget" data-category="${escapeHtml(formattedCat)}">&times;</button>
+        </span>
+      </div>
+      <div class="budget-bar-track"><div class="budget-bar-fill" style="width:0%"></div></div>
+    `;
+    div.querySelector(".budget-delete").addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      deleteBudget(formattedCat);
+    });
+    list.appendChild(div);
+  }
+
+  const sbBudgetCnt = el("sbBudgetCount");
+  if (sbBudgetCnt) {
+    const count = list.querySelectorAll(".budget-row").length;
+    sbBudgetCnt.textContent = `${count} set`;
+  }
+
   toast("Budget saved.");
   budgetForm.reset();
 
+  // 2. Sync with backend in background
   try {
     await api("/api/budgets", {
       method: "POST",
