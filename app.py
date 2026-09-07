@@ -39,6 +39,12 @@ def handle_validation_error(e):
     return jsonify({"error": str(e)}), 400
 
 
+@app.errorhandler(Exception)
+def handle_general_exception(e):
+    return jsonify({"error": str(e)}), 500
+
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):

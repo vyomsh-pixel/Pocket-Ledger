@@ -64,17 +64,21 @@ def create_user(conn, username: str, password: str, template: str = "salaried", 
 
     pwd_hash = generate_password_hash(password)
     now_str = today_iso()
-    cur = conn.execute(
+    conn.execute(
         "INSERT INTO users (username, password_hash, created_at, currency) VALUES (?, ?, ?, ?)",
         (username, pwd_hash, now_str, currency),
     )
     conn.commit()
 
-    user = get_user_by_id(conn, cur.lastrowid)
+    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    user = User.from_row(row) if row else None
+    if not user:
+        raise ValidationError("Failed to create user.")
 
     # Seed starter template budgets for clean user onboarding
     seed_user_starter_template(conn, user.id, template)
     return user
+
 
 
 def update_user_currency(conn, user_id: int, currency: str) -> User:
