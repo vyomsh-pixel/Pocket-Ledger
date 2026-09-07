@@ -571,7 +571,7 @@ button[type="submit"]:hover, .link-btn:hover { background: var(--focus); }
   margin-right: 6px;
 }
 
-.budget-pct.near { color: var(--focus); border-color: var(--focus); }
+.budget-pct.near, .budget-pct.at { color: var(--focus); border-color: var(--focus); }
 .budget-pct.over { color: var(--brick); border-color: var(--brick-dim); }
 
 .budget-row-top .amounts { font-variant-numeric: tabular-nums; color: var(--ink-dim); display: flex; align-items: center; }
@@ -599,7 +599,7 @@ button[type="submit"]:hover, .link-btn:hover { background: var(--focus); }
 }
 
 .budget-bar-fill { height: 100%; background: var(--brass); }
-.budget-bar-fill.near { background: var(--focus); }
+.budget-bar-fill.near, .budget-bar-fill.at { background: var(--focus); }
 .budget-bar-fill.over { background: var(--brick); }
 
 .budget-flag {
@@ -609,7 +609,7 @@ button[type="submit"]:hover, .link-btn:hover { background: var(--focus); }
 }
 
 .budget-flag.over { color: var(--brick); }
-.budget-flag.near { color: var(--focus); }
+.budget-flag.near, .budget-flag.at { color: var(--focus); }
 
 /* ---------------- Reports ---------------- */
 

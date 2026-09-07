@@ -103,6 +103,28 @@ class TestBudgets(unittest.TestCase):
         status = services.budget_status(self.conn, self.user.id, "2026-07")
         food_status = next(s for s in status if s["category"] == "Food")
         self.assertFalse(food_status["exceeded"])
+        self.assertFalse(food_status["at_limit"])
+        self.assertFalse(food_status["near_limit"])
+
+    def test_budget_at_limit(self):
+        services.set_budget(self.conn, self.user.id, "Food", 100)
+        services.add_transaction(self.conn, self.user.id, date="2026-07-05", type="expense",
+                                  category="Food", amount=100, note="Exact limit")
+        status = services.budget_status(self.conn, self.user.id, "2026-07")
+        food_status = next(s for s in status if s["category"] == "Food")
+        self.assertFalse(food_status["exceeded"])
+        self.assertTrue(food_status["at_limit"])
+        self.assertFalse(food_status["near_limit"])
+
+    def test_budget_near_limit(self):
+        services.set_budget(self.conn, self.user.id, "Food", 100)
+        services.add_transaction(self.conn, self.user.id, date="2026-07-05", type="expense",
+                                  category="Food", amount=95, note="Near limit")
+        status = services.budget_status(self.conn, self.user.id, "2026-07")
+        food_status = next(s for s in status if s["category"] == "Food")
+        self.assertFalse(food_status["exceeded"])
+        self.assertFalse(food_status["at_limit"])
+        self.assertTrue(food_status["near_limit"])
 
     def test_delete_budget(self):
         services.set_budget(self.conn, self.user.id, "Food", 100)

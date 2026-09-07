@@ -322,13 +322,17 @@ def budget_status(conn, user_id: int, year_month: str = None) -> list[dict]:
     for r in rows:
         limit = float(r["monthly_limit"])
         spent = float(r["spent"])
+        exceeded = spent > limit
+        at_limit = spent == limit
+        near_limit = 0.9 * limit <= spent < limit
         results.append({
             "category": r["category"],
             "limit": limit,
             "spent": spent,
             "remaining": limit - spent,
-            "exceeded": spent > limit,
-            "near_limit": 0.9 * limit <= spent <= limit,
+            "exceeded": exceeded,
+            "at_limit": at_limit,
+            "near_limit": near_limit,
         })
     return results
 

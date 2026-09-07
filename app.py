@@ -241,7 +241,7 @@ def api_duplicate_transaction(user_id, tx_id):
 
 def _budget_alert_for(user_id, category):
     for status in services.budget_status(db(), user_id):
-        if status["category"] == category and (status["exceeded"] or status["near_limit"]):
+        if status["category"] == category and (status["exceeded"] or status["at_limit"] or status["near_limit"]):
             return status
     return None
 

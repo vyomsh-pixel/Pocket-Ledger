@@ -513,6 +513,8 @@ entryForm.addEventListener("submit", async (e) => {
       const a = result.alert;
       const msg = a.exceeded
         ? `Budget alert — ${a.category} is over its limit (${money(a.spent)} / ${money(a.limit)}).`
+        : a.at_limit
+        ? `Heads up — ${a.category} has reached its limit (${money(a.spent)} / ${money(a.limit)}).`
         : `Heads up — ${a.category} is near its limit (${money(a.spent)} / ${money(a.limit)}).`;
       toast(msg, true, { text: "View Budgets", onClick: () => switchTab("budgets") });
     }
@@ -592,7 +594,7 @@ async function refreshBudgets() {
   rows.forEach((b) => {
     const pct = Math.min(100, (b.spent / b.limit) * 100);
     const actualPct = Math.round((b.spent / b.limit) * 100);
-    const cls = b.exceeded ? "over" : b.near_limit ? "near" : "";
+    const cls = b.exceeded ? "over" : b.at_limit ? "at" : b.near_limit ? "near" : "";
     const div = document.createElement("div");
     div.className = "budget-row";
     div.innerHTML = `
@@ -605,7 +607,7 @@ async function refreshBudgets() {
         </span>
       </div>
       <div class="budget-bar-track"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>
-      ${cls ? `<div class="budget-flag ${cls}">${b.exceeded ? "Over budget" : "Near limit"}</div>` : ""}
+      ${cls ? `<div class="budget-flag ${cls}">${b.exceeded ? "Over budget" : b.at_limit ? "At limit" : "Near limit"}</div>` : ""}
     `;
     div.querySelector(".budget-delete").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -839,6 +841,8 @@ async function duplicateTransaction(tx) {
       const a = res.alert;
       const msg = a.exceeded
         ? `Budget alert — ${a.category} is over its limit (${money(a.spent)} / ${money(a.limit)}).`
+        : a.at_limit
+        ? `Heads up — ${a.category} has reached its limit (${money(a.spent)} / ${money(a.limit)}).`
         : `Heads up — ${a.category} is near its limit (${money(a.spent)} / ${money(a.limit)}).`;
       toast(msg, true);
     }

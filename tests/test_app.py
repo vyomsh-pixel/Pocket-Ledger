@@ -71,6 +71,30 @@ class TestPocketLedgerAPI(unittest.TestCase):
         alert = resp.get_json()["alert"]
         self.assertIsNotNone(alert)
         self.assertTrue(alert["exceeded"])
+        self.assertFalse(alert["at_limit"])
+        self.assertFalse(alert["near_limit"])
+
+    def test_budget_alert_at_limit(self):
+        self.client.post("/api/budgets", json={"category": "Food", "monthly_limit": 100})
+        resp = self.client.post("/api/transactions", json={
+            "date": "2026-09-05", "type": "expense", "category": "Food", "amount": 100,
+        })
+        alert = resp.get_json()["alert"]
+        self.assertIsNotNone(alert)
+        self.assertFalse(alert["exceeded"])
+        self.assertTrue(alert["at_limit"])
+        self.assertFalse(alert["near_limit"])
+
+    def test_budget_alert_near_limit(self):
+        self.client.post("/api/budgets", json={"category": "Food", "monthly_limit": 100})
+        resp = self.client.post("/api/transactions", json={
+            "date": "2026-09-05", "type": "expense", "category": "Food", "amount": 95,
+        })
+        alert = resp.get_json()["alert"]
+        self.assertIsNotNone(alert)
+        self.assertFalse(alert["exceeded"])
+        self.assertFalse(alert["at_limit"])
+        self.assertTrue(alert["near_limit"])
 
     def test_edit_and_delete_transaction(self):
         add = self.client.post("/api/transactions", json={
