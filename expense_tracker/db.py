@@ -120,7 +120,12 @@ class PgConnWrapper:
         self.conn.commit()
 
 
+_PG_SCHEMA_INIT = False
+_SQLITE_SCHEMA_INIT = set()
+
+
 def get_connection(db_path: str = "pocketledger.db"):
+    global _PG_SCHEMA_INIT
     db_url = os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL")
     if db_path != ":memory:" and db_url:
         try:
@@ -133,7 +138,9 @@ def get_connection(db_path: str = "pocketledger.db"):
                 conn_kwargs["sslmode"] = "prefer"
             pg_conn = psycopg2.connect(db_url, **conn_kwargs)
             conn = PgConnWrapper(pg_conn)
-            conn.executescript(SCHEMA)
+            if not _PG_SCHEMA_INIT:
+                conn.executescript(SCHEMA)
+                _PG_SCHEMA_INIT = True
             return conn
         except Exception as e:
             print("PostgreSQL connection failed, using local/serverless fallback:", e)
@@ -186,6 +193,9 @@ def get_connection(db_path: str = "pocketledger.db"):
             conn.execute("PRAGMA synchronous = NORMAL;")
         except Exception:
             pass
-    conn.executescript(SQLITE_SCHEMA)
-    conn.commit()
+    if db_path not in _SQLITE_SCHEMA_INIT:
+        conn.executescript(SQLITE_SCHEMA)
+        conn.commit()
+        if db_path != ":memory:":
+            _SQLITE_SCHEMA_INIT.add(db_path)
     return conn

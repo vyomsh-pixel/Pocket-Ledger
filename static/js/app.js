@@ -438,59 +438,75 @@ entryForm.addEventListener("submit", async (e) => {
     amount: entryForm.amount.value,
     note: entryForm.note.value,
   };
+
+  const isEdit = Boolean(state.editingId);
+  const editId = state.editingId;
+  resetEntryForm();
+  toast(isEdit ? "Entry updated." : "Entry added.");
+
   try {
     let result;
-    if (state.editingId) {
-      result = await api(`/api/transactions/${state.editingId}`, { method: "PUT", body: JSON.stringify(payload) });
-      toast("Entry updated.");
+    if (isEdit) {
+      result = await api(`/api/transactions/${editId}`, { method: "PUT", body: JSON.stringify(payload) });
     } else {
       result = await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
-      toast("Entry added.");
     }
-    if (result.alert) {
+    if (result && result.alert) {
       const a = result.alert;
       const msg = a.exceeded
         ? `Budget alert — ${a.category} is over its limit (${money(a.spent)} / ${money(a.limit)}).`
         : `Heads up — ${a.category} is near its limit (${money(a.spent)} / ${money(a.limit)}).`;
       toast(msg, true, { text: "View Budgets", onClick: () => switchTab("budgets") });
     }
-    resetEntryForm();
-    await refreshAll();
+    refreshAll();
   } catch (err) {
     toast(err.message, true);
+    refreshAll();
   }
 });
 
 async function deleteTransaction(tx) {
-  try {
-    const txId = typeof tx === "object" ? tx.id : tx;
-    const deletedTx = typeof tx === "object" ? tx : null;
-    await api(`/api/transactions/${txId}`, { method: "DELETE" });
+  const txId = typeof tx === "object" ? tx.id : tx;
+  const deletedTx = typeof tx === "object" ? tx : null;
 
-    if (deletedTx) {
-      toast("Entry deleted.", false, {
-        text: "Undo",
-        onClick: async () => {
-          await api("/api/transactions", {
-            method: "POST",
-            body: JSON.stringify({
-              date: deletedTx.date,
-              type: deletedTx.type,
-              category: deletedTx.category,
-              amount: deletedTx.amount,
-              note: deletedTx.note || "",
-            }),
-          });
-          toast("Entry restored.");
-          await refreshAll();
-        },
-      });
-    } else {
-      toast("Entry deleted.");
-    }
-    await refreshAll();
+  // Optimistic UI Removal (0ms instant response)
+  const rowEl = document.querySelector(`.tx-row[data-id="${txId}"]`);
+  if (rowEl) {
+    rowEl.style.transition = "opacity 0.12s ease, transform 0.12s ease";
+    rowEl.style.opacity = "0";
+    rowEl.style.transform = "translateY(-4px)";
+    setTimeout(() => rowEl.remove(), 120);
+  }
+
+  if (deletedTx) {
+    toast("Entry deleted.", false, {
+      text: "Undo",
+      onClick: async () => {
+        await api("/api/transactions", {
+          method: "POST",
+          body: JSON.stringify({
+            date: deletedTx.date,
+            type: deletedTx.type,
+            category: deletedTx.category,
+            amount: deletedTx.amount,
+            note: deletedTx.note || "",
+          }),
+        });
+        toast("Entry restored.");
+        refreshAll();
+      },
+    });
+  } else {
+    toast("Entry deleted.");
+  }
+
+  try {
+    await api(`/api/transactions/${txId}`, { method: "DELETE" });
+    refreshSummary();
+    refreshBudgets();
   } catch (err) {
     toast(err.message, true);
+    refreshAll();
   }
 }
 
@@ -542,27 +558,47 @@ async function refreshBudgets() {
 }
 
 async function deleteBudget(category) {
+  // Optimistic UI Removal (0ms instant response)
+  const rows = document.querySelectorAll("#budgetList .budget-row");
+  rows.forEach((r) => {
+    const btn = r.querySelector(".budget-delete");
+    if (btn && btn.dataset.category === category) {
+      r.style.transition = "opacity 0.12s ease, transform 0.12s ease";
+      r.style.opacity = "0";
+      r.style.transform = "translateY(-4px)";
+      setTimeout(() => r.remove(), 120);
+    }
+  });
+
+  toast(`Budget for '${category}' deleted.`);
+
   try {
     await api(`/api/budgets/${encodeURIComponent(category)}`, { method: "DELETE" });
-    toast(`Budget for '${category}' deleted.`);
-    await refreshBudgets();
+    refreshBudgets();
   } catch (err) {
     toast(err.message, true);
+    refreshBudgets();
   }
 }
 
 budgetForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const cat = budgetForm.category.value.trim();
+  const limitVal = parseFloat(budgetForm.monthly_limit.value);
+  if (!cat || !limitVal) return;
+
+  toast("Budget saved.");
+  budgetForm.reset();
+
   try {
     await api("/api/budgets", {
       method: "POST",
-      body: JSON.stringify({ category: budgetForm.category.value, monthly_limit: budgetForm.monthly_limit.value }),
+      body: JSON.stringify({ category: cat, monthly_limit: limitVal }),
     });
-    toast("Budget saved.");
-    budgetForm.reset();
-    await refreshBudgets();
+    refreshBudgets();
   } catch (err) {
     toast(err.message, true);
+    refreshBudgets();
   }
 });
 
