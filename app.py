@@ -64,6 +64,18 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    from expense_tracker.db import PgConnWrapper
+    conn = db()
+    is_pg = isinstance(conn, PgConnWrapper)
+    return jsonify({
+        "status": "ok",
+        "database": "postgresql" if is_pg else "sqlite (ephemeral)",
+        "env_has_db_url": bool(os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL"))
+    })
+
+
 @app.route("/api/auth/register", methods=["POST"])
 def api_register():
     d = request.get_json(force=True)
