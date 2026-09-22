@@ -322,6 +322,13 @@ function updateSummaryDOM(s) {
   if (sbSav) sbSav.textContent = `${savingsRate}%`;
   if (sbPace) sbPace.textContent = `${money(dailyPace)}/day`;
 
+  const heroEl = document.querySelector(".balance-hero");
+  if (heroEl) {
+    heroEl.classList.remove("positive", "negative");
+    if (s.net > 0) heroEl.classList.add("positive");
+    else if (s.net < 0) heroEl.classList.add("negative");
+  }
+
   updatePersonaTag(savingsRate);
   renderCategoryBreakdown(s);
 }
@@ -333,16 +340,23 @@ async function refreshSummary() {
 }
 
 function updatePersonaTag(savingsRate) {
+  const textEl = el("userPersonaText");
   const tag = el("userPersonaTag");
   if (!tag) return;
+  let persona = "Balanced Allocator";
   if (savingsRate >= 35) {
-    tag.textContent = "Zen Strategist";
+    persona = "Zen Strategist";
   } else if (savingsRate >= 15) {
-    tag.textContent = "Capital Builder";
+    persona = "Capital Builder";
   } else if (savingsRate >= 0) {
-    tag.textContent = "Balanced Allocator";
+    persona = "Balanced Allocator";
   } else {
-    tag.textContent = "Active Restructurer";
+    persona = "Active Restructurer";
+  }
+  if (textEl) {
+    textEl.textContent = persona;
+  } else {
+    tag.textContent = persona;
   }
 }
 
@@ -973,22 +987,38 @@ if (monthLabelEl && monthPickerEl) {
 // ---------------------------------------------------------------------
 // Auth Handlers & Modal
 // ---------------------------------------------------------------------
+function applyUserToUI(user) {
+  state.user = user;
+  const authModal = el("authModal");
+  if (authModal) authModal.hidden = true;
+  const showAuthBtn = el("showAuthBtn");
+  if (showAuthBtn) showAuthBtn.hidden = true;
+  const userBadge = el("userBadge");
+  if (userBadge) userBadge.hidden = false;
+
+  const nameLabel = el("userNameLabel");
+  if (nameLabel) {
+    nameLabel.textContent = user.username;
+    nameLabel.title = user.username;
+  }
+
+  const initialEl = el("userAvatarInitial");
+  if (initialEl) {
+    const raw = (user.username || "U").trim();
+    initialEl.textContent = raw.charAt(0).toUpperCase() || "U";
+  }
+
+  const currSel = el("userCurrencySelect");
+  if (currSel && user.currency) {
+    currSel.value = user.currency;
+  }
+}
+
 async function checkAuth() {
   try {
     const res = await api("/api/auth/me");
     if (res.user) {
-      state.user = res.user;
-      el("authModal").hidden = true;
-      const showAuthBtn = el("showAuthBtn");
-      if (showAuthBtn) showAuthBtn.hidden = true;
-      el("userBadge").hidden = false;
-      el("userNameLabel").textContent = res.user.username;
-      el("userNameLabel").title = res.user.username;
-
-      const currSel = el("userCurrencySelect");
-      if (currSel && res.user.currency) {
-        currSel.value = res.user.currency;
-      }
+      applyUserToUI(res.user);
       await refreshAll();
     } else {
       showAuthModal();
@@ -1068,17 +1098,7 @@ if (authForm) {
       const payload = state.authMode === "register" ? { username, password, template, currency } : { username, password };
       const res = await api(path, { method: "POST", body: JSON.stringify(payload) });
 
-      state.user = res.user;
-      el("authModal").hidden = true;
-      const showBtn = el("showAuthBtn");
-      if (showBtn) showBtn.hidden = true;
-      el("userBadge").hidden = false;
-      el("userNameLabel").textContent = res.user.username;
-      el("userNameLabel").title = res.user.username;
-      const currSel = el("userCurrencySelect");
-      if (currSel && res.user.currency) {
-        currSel.value = res.user.currency;
-      }
+      applyUserToUI(res.user);
       toast(`Welcome, ${res.user.username}!`);
       await refreshAll();
     } catch (err) {
@@ -1142,17 +1162,7 @@ if (googleAuthBtn) {
         body: JSON.stringify(authPayload),
       });
 
-      state.user = res.user;
-      el("authModal").hidden = true;
-      const showBtn = el("showAuthBtn");
-      if (showBtn) showBtn.hidden = true;
-      el("userBadge").hidden = false;
-      el("userNameLabel").textContent = res.user.username;
-      el("userNameLabel").title = res.user.username;
-      const currSel = el("userCurrencySelect");
-      if (currSel && res.user.currency) {
-        currSel.value = res.user.currency;
-      }
+      applyUserToUI(res.user);
       toast(`Signed in as ${res.user.username}`);
       await refreshAll();
     } catch (err) {
