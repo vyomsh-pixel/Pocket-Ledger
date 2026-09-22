@@ -1396,4 +1396,302 @@ body.privacy-mode .blur-target {
   }
 }
 
+/* ---------------- Category Filter Bar ---------------- */
+
+.category-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+
+.cat-filter-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.cat-filter-dot {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.cat-filter-clear-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cat-filter-clear-btn:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+/* ---------------- Power User Keyboard Row Selection ---------------- */
+
+.tx-row.keyboard-selected {
+  background: var(--accent-dim) !important;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ---------------- Interactive Donut Chart ---------------- */
+
+.donut-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 18px;
+  position: relative;
+}
+
+.donut-svg {
+  width: 170px;
+  height: 170px;
+  overflow: visible;
+}
+
+.donut-bg {
+  stroke: var(--panel-elevated);
+}
+
+.donut-segment {
+  cursor: pointer;
+  transform-origin: center;
+  transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+}
+
+.donut-segment:hover {
+  stroke-width: 20;
+  filter: brightness(1.2);
+}
+
+.donut-segment.cat-active {
+  stroke-width: 22;
+  filter: brightness(1.25);
+}
+
+.donut-center-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  fill: var(--ink-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.donut-center-val {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--ink);
+  letter-spacing: -0.3px;
+}
+
+.cat-row {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.cat-row:hover {
+  background: var(--panel-elevated);
+}
+
+.cat-row.cat-active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.cat-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-color-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---------------- Shortcuts Modal ---------------- */
+
+.shortcuts-modal-card {
+  max-width: 480px;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.shortcut-item kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------- Formal Print-Ready Audit Statement ---------------- */
+
+.print-statement-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 1.2cm;
+    size: A4 portrait;
+  }
+  *, *::before, *::after {
+    background: transparent !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 10pt;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .desk {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+  .workspace-layout {
+    display: block !important;
+  }
+  .ledger {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  /* Hide interactive non-print chrome */
+  .ledger-head,
+  .balance-hero,
+  .tabs,
+  .entry-form,
+  .filter-row,
+  .category-filter-bar,
+  .cell-actions,
+  .col-actions,
+  .shortcut-bar,
+  .insights-sidebar,
+  .modal-overlay,
+  .toast,
+  .empty-state,
+  #budgetEmpty {
+    display: none !important;
+  }
+  /* Show print statement header */
+  .print-statement-header {
+    display: block !important;
+    margin-bottom: 24pt;
+    border-bottom: 2pt solid #000;
+    padding-bottom: 14pt;
+  }
+  .print-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14pt;
+  }
+  .print-title {
+    font-family: Georgia, serif;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .print-date {
+    font-size: 9pt;
+    color: #555 !important;
+    font-family: monospace;
+  }
+  .print-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12pt;
+  }
+  .print-meta-item .meta-label {
+    display: block;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    color: #666 !important;
+    letter-spacing: 0.06em;
+    margin-bottom: 3pt;
+  }
+  .print-meta-item .meta-value {
+    font-size: 11pt;
+    font-weight: 600;
+    font-family: monospace;
+  }
+  /* Print Transaction Table */
+  .tx-head-row {
+    grid-template-columns: 80px 140px 1fr 120px !important;
+    border-bottom: 1.5pt solid #000 !important;
+    font-weight: 700 !important;
+    font-size: 8.5pt !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 6pt 0 !important;
+  }
+  .tx-row {
+    grid-template-columns: 80px 140px 1fr 120px !important;
+    border-bottom: 0.5pt solid #e0e0e0 !important;
+    page-break-inside: avoid;
+    font-size: 9pt !important;
+    padding: 6pt 0 !important;
+    cursor: default !important;
+  }
+  .tx-row .cell-date {
+    font-family: monospace !important;
+  }
+  .cell-amount {
+    font-family: monospace !important;
+    font-weight: 700 !important;
+  }
+  .blur-target {
+    filter: none !important;
+  }
+}
+
 

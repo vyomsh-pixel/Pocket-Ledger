@@ -53,6 +53,9 @@ class TestPocketLedgerAPI(unittest.TestCase):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"PocketLedger", resp.data)
+        self.assertIn(b"print-statement-header", resp.data)
+        self.assertIn(b"shortcutsModal", resp.data)
+        self.assertIn(b"categoryFilterBar", resp.data)
 
     def test_add_and_list_transaction(self):
         resp = self.client.post("/api/transactions", json={

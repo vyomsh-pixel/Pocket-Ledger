@@ -87,6 +87,17 @@ const money = (n) => {
 const DEFAULT_EXPENSE_CATEGORIES = ["Food & Dining", "Utilities", "Shopping", "Entertainment", "Rent & Housing", "Transport", "Healthcare"];
 const DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Investment", "Business", "Gift / Bonus"];
 
+const CAT_PALETTE = [
+  "#C25E3E", // Terracotta Clay
+  "#6C8B74", // Sage Matcha
+  "#D99B56", // Ochre / Warm Sand
+  "#58728C", // Indigo Slate
+  "#8E5B75", // Muted Plum
+  "#8B6D55", // Raw Umber
+  "#5C7B88", // Ocean Mineral
+  "#7A8B67", // Olive Moss
+];
+
 const state = {
   user: null,
   authMode: "login",
@@ -94,8 +105,36 @@ const state = {
   editingId: null,
   selectedImportFile: null,
   budgetedCategories: [],
+  categoryFilter: null,
+  selectedTxIndex: -1,
+  currentSummary: null,
   convertFx: localStorage.getItem("pocketledger_fx") === "true", // false by default (Nominal 1:1 direct numbers)
 };
+
+function animateValue(elem, start, end, duration = 400, formatFn = money) {
+  if (!elem) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || isNaN(start) || start === end) {
+    elem.textContent = formatFn(end);
+    elem._currentVal = end;
+    return;
+  }
+  const startTime = performance.now();
+  const change = end - start;
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = start + change * ease;
+    elem.textContent = formatFn(current);
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      elem.textContent = formatFn(end);
+      elem._currentVal = end;
+    }
+  }
+  requestAnimationFrame(step);
+}
 
 const el = (id) => document.getElementById(id);
 const monthLabel = () => {
@@ -301,26 +340,45 @@ if (fxToggleBtn) {
 // ---------------------------------------------------------------------
 function updateSummaryDOM(s) {
   state.currentSummary = s;
-  el("netBalance").textContent = money(s.net);
-  el("totalIncome").textContent = money(s.income);
-  el("totalExpense").textContent = money(s.expense);
+
+  const prevNet = typeof el("netBalance")._currentVal === "number" ? el("netBalance")._currentVal : s.net;
+  const prevInc = typeof el("totalIncome")._currentVal === "number" ? el("totalIncome")._currentVal : s.income;
+  const prevExp = typeof el("totalExpense")._currentVal === "number" ? el("totalExpense")._currentVal : s.expense;
+
+  animateValue(el("netBalance"), prevNet, s.net, 400, money);
+  animateValue(el("totalIncome"), prevInc, s.income, 400, money);
+  animateValue(el("totalExpense"), prevExp, s.expense, 400, money);
 
   const savingsRate = s.income > 0 ? Math.round(((s.income - s.expense) / s.income) * 1000) / 10 : 0;
-  el("savingsRateVal").textContent = `${savingsRate}%`;
+  const prevSav = typeof el("savingsRateVal")._currentVal === "number" ? el("savingsRateVal")._currentVal : savingsRate;
+  animateValue(el("savingsRateVal"), prevSav, savingsRate, 400, (v) => `${(Math.round(v * 10) / 10).toFixed(1)}%`);
 
   // Daily Pace Calculation
   const [y, m] = state.month.split("-").map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
   const dailyPace = Math.round(s.expense / daysInMonth);
-  el("dailyPaceVal").textContent = `${money(dailyPace)}/day`;
+  const prevPace = typeof el("dailyPaceVal")._currentVal === "number" ? el("dailyPaceVal")._currentVal : dailyPace;
+  animateValue(el("dailyPaceVal"), prevPace, dailyPace, 400, (v) => `${money(v)}/day`);
 
-  // Sidebar updates
+  // Sidebar updates with ticker
   const sbNet = el("sbNetVal");
   const sbSav = el("sbSavingsVal");
   const sbPace = el("sbPaceVal");
-  if (sbNet) sbNet.textContent = money(s.net);
-  if (sbSav) sbSav.textContent = `${savingsRate}%`;
-  if (sbPace) sbPace.textContent = `${money(dailyPace)}/day`;
+  if (sbNet) animateValue(sbNet, prevNet, s.net, 400, money);
+  if (sbSav) animateValue(sbSav, prevSav, savingsRate, 400, (v) => `${(Math.round(v * 10) / 10).toFixed(1)}%`);
+  if (sbPace) animateValue(sbPace, prevPace, dailyPace, 400, (v) => `${money(v)}/day`);
+
+  // Print Statement updates
+  const pNet = el("printNet");
+  const pMonth = el("printMonth");
+  const pUser = el("printUser");
+  const pSavings = el("printSavings");
+  const pDate = el("printStatementDate");
+  if (pNet) pNet.textContent = money(s.net);
+  if (pMonth) pMonth.textContent = monthLabel();
+  if (pUser) pUser.textContent = state.user?.username || "Authorized User";
+  if (pSavings) pSavings.textContent = `${savingsRate}%`;
+  if (pDate) pDate.textContent = `Generated on ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
   const heroEl = document.querySelector(".balance-hero");
   if (heroEl) {
@@ -360,6 +418,17 @@ function updatePersonaTag(savingsRate) {
   }
 }
 
+function toggleCategoryFilter(catName) {
+  if (state.categoryFilter && state.categoryFilter.toLowerCase() === catName.toLowerCase()) {
+    state.categoryFilter = null;
+  } else {
+    state.categoryFilter = catName;
+    switchTab("ledger");
+  }
+  if (state.currentSummary) renderCategoryBreakdown(state.currentSummary);
+  refreshTransactions();
+}
+
 function renderCategoryBreakdown(summary) {
   const box = el("categoryBreakdown");
   const empty = el("reportEmpty");
@@ -370,8 +439,83 @@ function renderCategoryBreakdown(summary) {
     return;
   }
   empty.hidden = true;
+
+  const totalSpent = rows.reduce((sum, r) => sum + r.total, 0);
+
+  // 1. Interactive SVG Donut Chart
+  const donutWrap = document.createElement("div");
+  donutWrap.className = "donut-wrap";
+
+  const radius = 58;
+  const circ = 2 * Math.PI * radius; // ~364.425
+  let runningOffset = 0;
+
+  let segmentsSvg = "";
+  rows.forEach((r, idx) => {
+    const color = CAT_PALETTE[idx % CAT_PALETTE.length];
+    const pct = totalSpent > 0 ? r.total / totalSpent : 0;
+    const dash = pct * circ;
+    const offset = runningOffset * circ;
+    runningOffset += pct;
+
+    const isActive = state.categoryFilter && state.categoryFilter.toLowerCase() === r.category.toLowerCase();
+    segmentsSvg += `
+      <circle
+        cx="80" cy="80" r="${radius}"
+        stroke="${color}"
+        stroke-width="16"
+        fill="none"
+        stroke-dasharray="${dash} ${circ}"
+        stroke-dashoffset="-${offset}"
+        class="donut-segment ${isActive ? "cat-active" : ""}"
+        data-cat="${escapeHtml(r.category)}"
+        data-amount="${r.total}"
+      />
+    `;
+  });
+
+  const activeRow = state.categoryFilter ? rows.find((r) => r.category.toLowerCase() === state.categoryFilter.toLowerCase()) : null;
+  const initialLabel = activeRow ? activeRow.category.slice(0, 11) : "EXPENSES";
+  const initialVal = activeRow ? money(activeRow.total) : money(totalSpent);
+
+  donutWrap.innerHTML = `
+    <svg class="donut-svg" viewBox="0 0 160 160">
+      <circle class="donut-bg" cx="80" cy="80" r="${radius}" stroke-width="16" fill="none" />
+      <g transform="rotate(-90 80 80)">
+        ${segmentsSvg}
+      </g>
+      <text x="80" y="74" text-anchor="middle" class="donut-center-label" id="donutCenterLabel">${escapeHtml(initialLabel)}</text>
+      <text x="80" y="94" text-anchor="middle" class="donut-center-val blur-target" id="donutCenterVal">${initialVal}</text>
+    </svg>
+  `;
+
+  box.appendChild(donutWrap);
+
+  const centerLabel = donutWrap.querySelector("#donutCenterLabel");
+  const centerVal = donutWrap.querySelector("#donutCenterVal");
+
+  function resetCenter() {
+    const currentActive = state.categoryFilter ? rows.find((r) => r.category.toLowerCase() === state.categoryFilter.toLowerCase()) : null;
+    if (centerLabel) centerLabel.textContent = currentActive ? currentActive.category.slice(0, 11) : "EXPENSES";
+    if (centerVal) centerVal.textContent = currentActive ? money(currentActive.total) : money(totalSpent);
+  }
+
+  // Hover & click listeners on donut segments
+  donutWrap.querySelectorAll(".donut-segment").forEach((seg) => {
+    seg.addEventListener("mouseenter", () => {
+      if (centerLabel) centerLabel.textContent = seg.dataset.cat.slice(0, 11);
+      if (centerVal) centerVal.textContent = money(Number(seg.dataset.amount));
+    });
+    seg.addEventListener("mouseleave", resetCenter);
+    seg.addEventListener("click", () => {
+      toggleCategoryFilter(seg.dataset.cat);
+    });
+  });
+
+  // 2. Category list items below donut
   const max = Math.max(...rows.map((r) => r.total));
-  rows.forEach((r) => {
+  rows.forEach((r, idx) => {
+    const color = CAT_PALETTE[idx % CAT_PALETTE.length];
     let pct, cls;
     if (r.limit && r.limit > 0) {
       pct = Math.min(100, (r.total / r.limit) * 100);
@@ -380,17 +524,32 @@ function renderCategoryBreakdown(summary) {
       pct = max > 0 ? (r.total / max) * 100 : 0;
       cls = "";
     }
+    const isActive = state.categoryFilter && state.categoryFilter.toLowerCase() === r.category.toLowerCase();
     const div = document.createElement("div");
-    div.className = "cat-row";
+    div.className = `cat-row ${isActive ? "cat-active" : ""}`;
+    div.title = `Click to filter transactions by ${r.category}`;
     div.innerHTML = `
       <div class="cat-row-top">
-        <span>${escapeHtml(r.category)}</span>
+        <span class="cat-name-wrap">
+          <span class="cat-color-dot" style="background:${color}"></span>
+          <span>${escapeHtml(r.category)}</span>
+        </span>
         <span class="cat-amount ${cls} blur-target">
           ${money(r.total)}${r.limit ? ` <span class="cat-limit">/ ${money(r.limit)}</span>` : ""}
         </span>
       </div>
-      <div class="cat-bar-track"><div class="cat-bar-fill ${cls}" style="width:${pct}%"></div></div>
+      <div class="cat-bar-track"><div class="cat-bar-fill ${cls}" style="width:${pct}%; ${!cls ? `background:${color};` : ""}"></div></div>
     `;
+
+    div.addEventListener("click", () => {
+      toggleCategoryFilter(r.category);
+    });
+    div.addEventListener("mouseenter", () => {
+      if (centerLabel) centerLabel.textContent = r.category.slice(0, 11);
+      if (centerVal) centerVal.textContent = money(r.total);
+    });
+    div.addEventListener("mouseleave", resetCenter);
+
     box.appendChild(div);
   });
 }
@@ -452,13 +611,36 @@ async function refreshTransactions() {
   const empty = el("txEmpty");
   list.innerHTML = "";
 
-  if (rows.length === 0) {
+  const filteredRows = state.categoryFilter
+    ? rows.filter((tx) => tx.category && tx.category.toLowerCase() === state.categoryFilter.toLowerCase())
+    : rows;
+
+  const filterBar = el("categoryFilterBar");
+  if (filterBar) {
+    if (state.categoryFilter) {
+      filterBar.hidden = false;
+      const catNameEl = el("catFilterName");
+      if (catNameEl) catNameEl.textContent = state.categoryFilter;
+    } else {
+      filterBar.hidden = true;
+    }
+  }
+
+  state.selectedTxIndex = -1;
+
+  if (filteredRows.length === 0) {
     empty.hidden = false;
+    const desc = empty.querySelector(".empty-state-desc");
+    if (desc) {
+      desc.textContent = state.categoryFilter
+        ? `No transactions found under "${state.categoryFilter}". Press Esc or click clear.`
+        : "Record your first entry above or press N to begin.";
+    }
     return;
   }
   empty.hidden = true;
 
-  rows.forEach((tx) => {
+  filteredRows.forEach((tx) => {
     list.appendChild(createTxRowElement(tx));
   });
 }
@@ -919,6 +1101,23 @@ async function duplicateTransaction(tx) {
 // ---------------------------------------------------------------------
 // Global Power-User Keyboard Shortcuts
 // ---------------------------------------------------------------------
+function updateSelectedTx(newIndex) {
+  const rows = document.querySelectorAll("#txList .tx-row");
+  if (rows.length === 0) {
+    state.selectedTxIndex = -1;
+    return;
+  }
+  rows.forEach((r) => r.classList.remove("keyboard-selected"));
+  if (newIndex < 0) newIndex = 0;
+  if (newIndex >= rows.length) newIndex = rows.length - 1;
+  state.selectedTxIndex = newIndex;
+  const target = rows[newIndex];
+  if (target) {
+    target.classList.add("keyboard-selected");
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
 document.addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) {
     if (e.key === "Escape") document.activeElement.blur();
@@ -941,8 +1140,65 @@ document.addEventListener("keydown", (e) => {
     applyPrivacy(!state.privacy);
   } else if (key === "x") {
     applyFx(!state.convertFx);
+  } else if (key === "j") {
+    e.preventDefault();
+    updateSelectedTx(state.selectedTxIndex + 1);
+  } else if (key === "k") {
+    e.preventDefault();
+    updateSelectedTx(state.selectedTxIndex - 1);
+  } else if (key === "e") {
+    if (state.selectedTxIndex >= 0) {
+      e.preventDefault();
+      const rows = document.querySelectorAll("#txList .tx-row");
+      const target = rows[state.selectedTxIndex];
+      if (target) {
+        const editBtn = target.querySelector(".tx-edit");
+        if (editBtn) editBtn.click();
+      }
+    }
+  } else if (key === "c") {
+    if (state.selectedTxIndex >= 0) {
+      e.preventDefault();
+      const rows = document.querySelectorAll("#txList .tx-row");
+      const target = rows[state.selectedTxIndex];
+      if (target) {
+        const dupBtn = target.querySelector(".tx-dup");
+        if (dupBtn) dupBtn.click();
+      }
+    }
+  } else if (key === "d" || e.key === "Delete" || e.key === "Backspace") {
+    if (state.selectedTxIndex >= 0) {
+      e.preventDefault();
+      const rows = document.querySelectorAll("#txList .tx-row");
+      const target = rows[state.selectedTxIndex];
+      if (target) {
+        const delBtn = target.querySelector(".tx-delete");
+        if (delBtn) delBtn.click();
+      }
+    }
+  } else if (e.key === "?" || (e.shiftKey && key === "/")) {
+    e.preventDefault();
+    const sm = el("shortcutsModal");
+    if (sm) sm.hidden = !sm.hidden;
+  } else if (e.key === "Escape") {
+    const sm = el("shortcutsModal");
+    const im = el("importModal");
+    const am = el("authModal");
+    if (sm && !sm.hidden) {
+      sm.hidden = true;
+    } else if (im && !im.hidden) {
+      im.hidden = true;
+    } else if (am && !am.hidden && state.user) {
+      am.hidden = true;
+    } else if (state.categoryFilter) {
+      state.categoryFilter = null;
+      if (state.currentSummary) renderCategoryBreakdown(state.currentSummary);
+      refreshTransactions();
+    } else if (state.selectedTxIndex >= 0) {
+      state.selectedTxIndex = -1;
+      document.querySelectorAll("#txList .tx-row").forEach((r) => r.classList.remove("keyboard-selected"));
+    }
   }
-
 });
 
 async function refreshAll() {
@@ -1185,6 +1441,23 @@ if (logoutBtn) {
       toast("Logged out.");
     } catch (_) {}
     showAuthModal();
+  });
+}
+
+const catFilterClearBtn = el("catFilterClearBtn");
+if (catFilterClearBtn) {
+  catFilterClearBtn.addEventListener("click", () => {
+    state.categoryFilter = null;
+    if (state.currentSummary) renderCategoryBreakdown(state.currentSummary);
+    refreshTransactions();
+  });
+}
+
+const closeShortcutsModalBtn = el("closeShortcutsModalBtn");
+if (closeShortcutsModalBtn) {
+  closeShortcutsModalBtn.addEventListener("click", () => {
+    const sm = el("shortcutsModal");
+    if (sm) sm.hidden = true;
   });
 }
 

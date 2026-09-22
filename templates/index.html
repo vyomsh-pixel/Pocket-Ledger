@@ -18,6 +18,32 @@
 </head>
 <body>
 <div class="desk">
+  <!-- Formal Print Statement Header (Visible only during printing / PDF export) -->
+  <div class="print-statement-header">
+    <div class="print-header-top">
+      <div class="print-title">POCKETLEDGER &bull; MONTHLY STATEMENT</div>
+      <div class="print-date" id="printStatementDate">—</div>
+    </div>
+    <div class="print-meta-grid">
+      <div class="print-meta-item">
+        <span class="meta-label">ACCOUNT</span>
+        <span class="meta-value" id="printUser">—</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="meta-label">STATEMENT PERIOD</span>
+        <span class="meta-value" id="printMonth">—</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="meta-label">NET BALANCE</span>
+        <span class="meta-value" id="printNet">—</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="meta-label">SAVINGS RATE</span>
+        <span class="meta-value" id="printSavings">—</span>
+      </div>
+    </div>
+  </div>
+
   <div class="workspace-layout">
     <main class="ledger">
 
@@ -145,6 +171,14 @@
         </select>
       </div>
 
+      <div id="categoryFilterBar" class="category-filter-bar" hidden>
+        <div class="cat-filter-info">
+          <span class="cat-filter-dot">●</span>
+          <span>Category: <strong id="catFilterName">—</strong></span>
+        </div>
+        <button type="button" id="catFilterClearBtn" class="cat-filter-clear-btn" title="Clear filter (Escape)">&times; clear filter</button>
+      </div>
+
       <div class="tx-head-row">
         <span class="col-date">Date</span>
         <span class="col-category">Category</span>
@@ -189,7 +223,7 @@
 
     <!-- Keyboard Shortcuts Hint Bar -->
     <footer class="shortcut-bar">
-      <span>Keys: <kbd>N</kbd> New Entry &nbsp;&middot;&nbsp; <kbd>/</kbd> Search &nbsp;&middot;&nbsp; <kbd>1</kbd>/<kbd>2</kbd> Tabs &nbsp;&middot;&nbsp; <kbd>P</kbd> Privacy Blur</span>
+      <span>Keys: <kbd>J</kbd>/<kbd>K</kbd> Select &nbsp;&middot;&nbsp; <kbd>E</kbd> Edit &nbsp;&middot;&nbsp; <kbd>N</kbd> New &nbsp;&middot;&nbsp; <kbd>/</kbd> Search &nbsp;&middot;&nbsp; <kbd>1</kbd>/<kbd>2</kbd> Tabs &nbsp;&middot;&nbsp; <kbd>P</kbd> Privacy &nbsp;&middot;&nbsp; <kbd>?</kbd> Shortcuts</span>
     </footer>
 
   </main>
@@ -332,6 +366,29 @@
   </div>
 </div>
 
+
+<!-- Keyboard Shortcuts Cheat-Sheet Modal -->
+<div id="shortcutsModal" class="modal-overlay" hidden>
+  <div class="modal-card shortcuts-modal-card">
+    <button id="closeShortcutsModalBtn" class="modal-close-btn">&times;</button>
+    <h3>Keyboard Shortcuts</h3>
+    <p class="modal-desc">Navigate your financial ledger without touching the mouse.</p>
+
+    <div class="shortcuts-grid">
+      <div class="shortcut-item"><kbd>J</kbd> / <kbd>K</kbd> <span>Select next / previous transaction</span></div>
+      <div class="shortcut-item"><kbd>E</kbd> <span>Edit selected transaction</span></div>
+      <div class="shortcut-item"><kbd>C</kbd> <span>Duplicate selected transaction</span></div>
+      <div class="shortcut-item"><kbd>D</kbd> / <kbd>Del</kbd> <span>Delete selected transaction</span></div>
+      <div class="shortcut-item"><kbd>N</kbd> <span>Focus new entry form</span></div>
+      <div class="shortcut-item"><kbd>/</kbd> <span>Focus search input</span></div>
+      <div class="shortcut-item"><kbd>1</kbd> / <kbd>2</kbd> <span>Switch Ledger / Budgets tabs</span></div>
+      <div class="shortcut-item"><kbd>P</kbd> <span>Toggle privacy amount blur</span></div>
+      <div class="shortcut-item"><kbd>X</kbd> <span>Toggle FX live conversion</span></div>
+      <div class="shortcut-item"><kbd>Esc</kbd> <span>Clear filter / Deselect / Close modal</span></div>
+      <div class="shortcut-item"><kbd>?</kbd> <span>Toggle this shortcuts guide</span></div>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
