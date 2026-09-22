@@ -85,9 +85,6 @@
           <span class="persona-tag" id="userPersonaTag"><span class="persona-dot">●</span> <span id="userPersonaText">Zen Strategist</span></span>
           <button id="logoutBtn" class="logout-btn" title="Sign out of your account">Sign Out</button>
         </div>
-
-        <button id="fxToggleBtn" class="link-btn secondary-link fx-btn" title="Toggle FX Live Exchange Rate Mode (Hotkey: X)">fx: off</button>
-        <button id="privacyToggleBtn" class="link-btn secondary-link privacy-btn" title="Toggle Amount Privacy Blur (Hotkey: P)">privacy: off</button>
       </div>
     </header>
 
@@ -108,11 +105,17 @@
       </div>
     </section>
 
-    <!-- Navigation Tabs -->
-    <nav class="tabs" id="tabs">
-      <button class="tab active" data-tab="ledger">Ledger</button>
-      <button class="tab" data-tab="budgets">Budgets</button>
-    </nav>
+    <!-- Navigation Tabs & View Toggles -->
+    <div class="tabs-row">
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="ledger">Ledger</button>
+        <button class="tab" data-tab="budgets">Budgets</button>
+      </nav>
+      <div class="tabs-actions">
+        <button id="fxToggleBtn" class="link-btn secondary-link fx-btn" title="Toggle FX Live Exchange Rate Mode (Hotkey: X)">fx: off</button>
+        <button id="privacyToggleBtn" class="link-btn secondary-link privacy-btn" title="Toggle Amount Privacy Blur (Hotkey: P)">privacy: off</button>
+      </div>
+    </div>
 
     <!-- TAB 1: LEDGER -->
     <section id="tab-ledger" class="tab-panel active">

@@ -428,12 +428,52 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 /* ---------------- Tabs ---------------- */
 
-.tabs {
+.tabs-row {
   display: flex;
-  gap: 22px;
+  justify-content: space-between;
+  align-items: center;
   padding: 0 24px;
   border-bottom: 1px solid var(--line);
   margin-top: 14px;
+}
+
+.tabs {
+  display: flex;
+  gap: 22px;
+}
+
+.tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs-actions .fx-btn,
+.tabs-actions .privacy-btn {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.3px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--panel-elevated);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tabs-actions .fx-btn:hover,
+.tabs-actions .privacy-btn:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.tabs-actions .fx-btn.active,
+.tabs-actions .privacy-btn.active {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  font-weight: 500;
 }
 
 .tab {
@@ -1609,6 +1649,7 @@ body.privacy-mode .blur-target {
   .ledger-head,
   .balance-hero,
   .tabs,
+  .tabs-row,
   .entry-form,
   .filter-row,
   .category-filter-bar,
