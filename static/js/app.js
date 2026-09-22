@@ -156,11 +156,40 @@ function updateCategorySuggestions() {
   });
 }
 
+let selectedSuggestionIndex = -1;
+
 // Wire Category Input Events
 const categoryInput = el("categoryInput");
 if (categoryInput) {
   categoryInput.addEventListener("focus", updateCategorySuggestions);
   categoryInput.addEventListener("input", updateCategorySuggestions);
+  categoryInput.addEventListener("keydown", (e) => {
+    const dropdown = el("categoryCustomDropdown");
+    if (!dropdown || dropdown.hidden) return;
+    const items = dropdown.querySelectorAll(".dropdown-item");
+    if (items.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      selectedSuggestionIndex = (selectedSuggestionIndex + 1) % items.length;
+      items.forEach((it, idx) => it.classList.toggle("active", idx === selectedSuggestionIndex));
+      items[selectedSuggestionIndex]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      selectedSuggestionIndex = (selectedSuggestionIndex - 1 + items.length) % items.length;
+      items.forEach((it, idx) => it.classList.toggle("active", idx === selectedSuggestionIndex));
+      items[selectedSuggestionIndex]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && selectedSuggestionIndex >= 0) {
+      e.preventDefault();
+      const selItem = items[selectedSuggestionIndex];
+      if (selItem && selItem.dataset.value) {
+        categoryInput.value = selItem.dataset.value;
+        dropdown.hidden = true;
+      }
+    } else if (e.key === "Escape") {
+      dropdown.hidden = true;
+    }
+  });
 }
 
 document.addEventListener("click", (e) => {
@@ -170,6 +199,7 @@ document.addEventListener("click", (e) => {
     dropdown.hidden = true;
   }
 });
+
 
 // ---------------------------------------------------------------------
 // Toast
@@ -1073,6 +1103,8 @@ if (googleAuthBtn) {
       const isFirebaseConfigured = typeof firebase !== "undefined" && firebase.auth && window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey;
 
 
+      const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
       if (isFirebaseConfigured) {
         toast("Opening Google Sign-In popup...");
         const provider = new firebase.auth.GoogleAuthProvider();
@@ -1081,27 +1113,29 @@ if (googleAuthBtn) {
         const idToken = await fbUser.getIdToken();
 
         authPayload = {
+          idToken: idToken,
           google_id: fbUser.uid,
           email: fbUser.email,
-          name: fbUser.displayName || "",
-          idToken: idToken,
           template,
           currency,
         };
-      } else {
-        // Fallback for testing before Firebase keys are pasted
-        const userEmail = prompt("Firebase keys not set yet. Enter your Google Email to sign in (or click OK for default):", "user.google@ledger.internal");
-        if (userEmail === null) return;
-        const cleanEmail = userEmail.trim() || "user.google@ledger.internal";
+      } else if (isLocalhost) {
+        // Local Dev Mode Fallback
+        const userEmail = prompt("Local Dev Mode: Enter Google Email for test sign-in:", "dev@ledger.internal");
+        if (!userEmail) return;
+        const cleanEmail = userEmail.trim();
 
         authPayload = {
           google_id: "google_" + btoa(cleanEmail).replace(/=/g, ""),
           email: cleanEmail,
-          name: cleanEmail.split("@")[0],
           template,
           currency,
         };
+      } else {
+        toast("Google Sign-In is unavailable because Firebase is not configured.", true);
+        return;
       }
+
 
       const res = await api("/api/auth/google", {
         method: "POST",

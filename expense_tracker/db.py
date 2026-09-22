@@ -115,8 +115,9 @@ class PgConnWrapper:
             pg_sql = pg_sql.replace("?", "%s")
             try:
                 cur.execute(pg_sql)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.warning(f"PgConnWrapper DDL statement execution warning: {e}")
         self.conn.commit()
 
 
@@ -147,7 +148,10 @@ def get_connection(db_path: str = "pocketledger.db"):
 
     # Vercel Serverless Writable Path Fallback
     if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) and db_path == "pocketledger.db":
+        import logging
+        logging.warning("Running on Vercel with ephemeral /tmp SQLite storage. Configure DATABASE_URL for data persistence.")
         db_path = "/tmp/pocketledger.db"
+
 
     if db_path != ":memory:" and Path(db_path).parent != Path(""):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)

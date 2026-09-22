@@ -120,9 +120,13 @@ def get_or_create_google_user(conn, google_id: str, email: str, name: str = "", 
     row = conn.execute("SELECT * FROM users WHERE username = ?", (email,)).fetchone()
     if row:
         user = User.from_row(row)
-        conn.execute("UPDATE users SET google_id = ? WHERE id = ?", (google_id, user.id))
-        conn.commit()
-        return get_user_by_id(conn, user.id)
+        if user.google_id and user.google_id != google_id:
+            raise ValidationError("This account is already linked to a different Google identity.")
+        if not user.google_id:
+            conn.execute("UPDATE users SET google_id = ? WHERE id = ?", (google_id, user.id))
+            conn.commit()
+            user = get_user_by_id(conn, user.id)
+        return user
 
     # 3. Create new user for Google Sign In
     now_str = today_iso()
@@ -140,6 +144,7 @@ def get_or_create_google_user(conn, google_id: str, email: str, name: str = "", 
         raise ValidationError("Failed to create Google user.")
     user = User.from_row(row)
     return user
+
 
 
 def get_user_by_id(conn, user_id: int) -> Optional[User]:
@@ -298,9 +303,10 @@ def list_budgets(conn, user_id: int) -> list[Budget]:
 
 
 def delete_budget(conn, user_id: int, category: str) -> bool:
-    c = conn.execute("DELETE FROM budgets WHERE user_id = ? AND category = ?", (user_id, category.strip()))
+    c = conn.execute("DELETE FROM budgets WHERE user_id = ? AND category = ?", (user_id, category.strip().title()))
     conn.commit()
     return c.rowcount > 0
+
 
 
 def budget_status(conn, user_id: int, year_month: str = None) -> list[dict]:
@@ -429,35 +435,43 @@ def get_analytics_data(conn, user_id: int, year_month: str = None, months_count:
 
     health_score = max(0, min(100, health_score))
 
-    # Generate historical trends for recent months
+    # Generate historical trends for recent months in a single SQL query
     historical = []
     try:
         curr_dt = datetime.strptime(f"{year_month}-01", "%Y-%m-%d")
     except ValueError:
         curr_dt = datetime.today()
 
+    target_months = []
     for i in range(months_count - 1, -1, -1):
         year = curr_dt.year
         month = curr_dt.month - i
         while month <= 0:
             month += 12
             year -= 1
-        m_str = f"{year:04d}-{month:02d}"
+        target_months.append(f"{year:04d}-{month:02d}")
 
-        m_inc = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS t FROM transactions WHERE user_id = ? AND type='income' AND date LIKE ?",
-            (user_id, f"{m_str}%")
-        ).fetchone()["t"]
-        m_exp = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS t FROM transactions WHERE user_id = ? AND type='expense' AND date LIKE ?",
-            (user_id, f"{m_str}%")
-        ).fetchone()["t"]
+    min_month_str = target_months[0] + "-01"
+    rows = conn.execute(
+        "SELECT substr(date, 1, 7) AS month, "
+        "COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) AS inc, "
+        "COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) AS exp "
+        "FROM transactions WHERE user_id = ? AND date >= ? "
+        "GROUP BY substr(date, 1, 7)",
+        (user_id, min_month_str),
+    ).fetchall()
+
+    totals_by_month = {r["month"]: (float(r["inc"]), float(r["exp"])) for r in rows}
+
+    for m_str in target_months:
+        m_inc, m_exp = totals_by_month.get(m_str, (0.0, 0.0))
         historical.append({
             "month": m_str,
             "income": m_inc,
             "expense": m_exp,
             "net": m_inc - m_exp
         })
+
 
     # Calculate category percentages
     total_exp = summary["expense"]

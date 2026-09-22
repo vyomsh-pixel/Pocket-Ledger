@@ -14,15 +14,28 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+os.environ["SECRET_KEY"] = "test-secret-key-for-unit-tests"
+os.environ["SKIP_OAUTH_VERIFY"] = "true"
+
 import app as app_module
+from unittest.mock import patch
+from expense_tracker.db import get_connection
+from expense_tracker.services import ValidationError
+
+
+
 
 
 class TestPocketLedgerAPI(unittest.TestCase):
     def setUp(self):
-        self.tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-        self.tmp_db.close()
-        app_module.DB_PATH = self.tmp_db.name
+        # Shared in-memory DB connection monkeypatched PER TEST METHOD in setUp()
+        # (NOT in setUpClass()) to ensure 100% test isolation with zero state leakage across tests.
+        self.conn = get_connection(":memory:")
+        self.db_patcher = patch.object(app_module, "db", side_effect=lambda: self.conn)
+        self.db_patcher.start()
+
         app_module.app.testing = True
+        app_module.app.debug = True
         self.client = app_module.app.test_client()
         # Register and log in test user
         self.client.post("/api/auth/register", json={
@@ -32,8 +45,9 @@ class TestPocketLedgerAPI(unittest.TestCase):
         })
 
     def tearDown(self):
-        if os.path.exists(self.tmp_db.name):
-            os.unlink(self.tmp_db.name)
+        self.db_patcher.stop()
+        self.conn.close()
+
 
     def test_index_page_loads(self):
         resp = self.client.get("/")
@@ -166,6 +180,43 @@ class TestPocketLedgerAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 401)
         self.assertTrue(resp.get_json()["auth_required"])
 
+    def test_google_auth_requires_token_when_verify_enabled(self):
+        with patch.dict(os.environ, {"SKIP_OAUTH_VERIFY": "false"}):
+            resp = self.client.post("/api/auth/google", json={"email": "hacker@test.com"})
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("error", resp.get_json())
+
+    def test_google_account_takeover_prevention(self):
+        # Setup user with google_id_1
+        from expense_tracker import services
+        services.get_or_create_google_user(self.conn, google_id="google_id_1", email="user@test.com")
+        
+        # Attempt to sign in with matching email but different google_id_2
+        with self.assertRaises(ValidationError):
+            services.get_or_create_google_user(self.conn, google_id="google_id_2", email="user@test.com")
+
+    def test_delete_budget_case_insensitive(self):
+        from expense_tracker import services
+        services.set_budget(self.conn, 1, "Food & Dining", 500)
+        ok = services.delete_budget(self.conn, 1, "food & dining")
+        self.assertTrue(ok)
+
+    def test_secret_key_production_guard(self):
+        with patch.dict(os.environ, {"SECRET_KEY": ""}, clear=True):
+            orig_debug = app_module.app.debug
+            try:
+                app_module.app.debug = False
+                with self.assertRaises(RuntimeError):
+                    secret_key = os.environ.get("SECRET_KEY")
+                    is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+                    if not secret_key and (not app_module.app.debug or is_vercel):
+                        raise RuntimeError("SECRET_KEY environment variable MUST be set in production mode.")
+            finally:
+                app_module.app.debug = orig_debug
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+

@@ -27,15 +27,17 @@
         <img src="/static/favicon.svg" alt="PocketLedger Logo" class="brand-logo-img">
         <h1>PocketLedger</h1>
       </div>
-      <div class="header-controls">
-        <div class="month-nav">
-          <button id="prevMonth" aria-label="Previous month">&lsaquo;</button>
-          <div class="month-label-wrap">
-            <span id="monthLabel" title="Click to select month">—</span>
-            <input type="month" id="monthPicker" class="month-picker-hidden" aria-label="Select month">
-          </div>
-          <button id="nextMonth" aria-label="Next month">&rsaquo;</button>
+
+      <div class="month-nav">
+        <button id="prevMonth" aria-label="Previous month">&lsaquo;</button>
+        <div class="month-label-wrap">
+          <span id="monthLabel" title="Click to select month">—</span>
+          <input type="month" id="monthPicker" class="month-picker-hidden" aria-label="Select month">
         </div>
+        <button id="nextMonth" aria-label="Next month">&rsaquo;</button>
+      </div>
+
+      <div class="header-controls">
         <button id="showAuthBtn" class="link-btn auth-open-btn" hidden>Sign In / Register</button>
         <div class="user-badge" id="userBadge" hidden>
           <span class="user-name" id="userNameLabel">—</span>
@@ -59,6 +61,9 @@
         <button id="privacyToggleBtn" class="link-btn secondary-link privacy-btn" title="Toggle Amount Privacy Blur (Hotkey: P)">privacy: off</button>
       </div>
     </header>
+
+
+
 
 
     <!-- One Hero Balance Number + Quiet Inline Pills -->

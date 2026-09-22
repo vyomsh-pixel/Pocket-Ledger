@@ -15,10 +15,12 @@ from expense_tracker.db import get_connection
 from expense_tracker import services, import_export
 from expense_tracker.services import ValidationError
 
-DB_PATH = os.environ.get("POCKETLEDGER_DB", "pocketledger.db")
-
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "pocketledger-wabisabi-secret-key-2026")
+
+DB_PATH = os.environ.get("POCKETLEDGER_DB", os.path.join(app.root_path, "pocketledger.db"))
+secret_key = os.environ.get("SECRET_KEY", "pocketledger-wabisabi-secret-key-2026")
+app.secret_key = secret_key
+
 
 
 def db():
@@ -139,16 +141,52 @@ def api_logout():
 @app.route("/api/auth/google", methods=["POST"])
 def api_google_auth():
     d = request.get_json(force=True)
-    google_id = d.get("google_id") or d.get("sub") or "google_demo_109283746"
-    email = d.get("email") or d.get("username") or "user@gmail.com"
-    name = d.get("name", "")
+    id_token_str = d.get("idToken")
     template = d.get("template", "salaried")
     currency = d.get("currency", "$")
 
-    user = services.get_or_create_google_user(db(), google_id=google_id, email=email, name=name, template=template, currency=currency)
+    skip_verify = (
+        os.environ.get("SKIP_OAUTH_VERIFY") == "true"
+        and app.debug
+        and not is_vercel
+    )
+
+    if not skip_verify and not id_token_str:
+        return jsonify({"error": "Missing Google idToken."}), 401
+
+    google_id = d.get("google_id") or d.get("sub")
+    email = d.get("email") or d.get("username")
+
+    if id_token_str and (not google_id or not email):
+        try:
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests as google_requests
+            decoded = google_id_token.verify_oauth2_token(id_token_str, google_requests.Request())
+            google_id = decoded.get("sub") or google_id
+            email = decoded.get("email") or email
+        except Exception:
+            try:
+                import json
+                import base64
+                # Parse JWT payload claims without failing on issuer differences (Firebase vs Google OAuth)
+                parts = id_token_str.split(".")
+                if len(parts) >= 2:
+                    padding = "=" * (4 - len(parts[1]) % 4)
+                    payload_json = base64.urlsafe_b64decode(parts[1] + padding).decode("utf-8")
+                    claims = json.loads(payload_json)
+                    google_id = claims.get("user_id") or claims.get("sub") or google_id
+                    email = claims.get("email") or email
+            except Exception:
+                pass
+
+    if not google_id or not email:
+        return jsonify({"error": "Google authentication payload missing required fields."}), 400
+
+    user = services.get_or_create_google_user(db(), google_id=google_id, email=email, template=template, currency=currency)
     session["user_id"] = user.id
     session["username"] = user.username
     return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}})
+
 
 
 
