@@ -47,6 +47,29 @@ def handle_general_exception(e):
     return jsonify({"error": str(e)}), 500
 
 
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
+
+@app.route("/api/<path:path>", methods=["OPTIONS"])
+def api_options(path):
+    response = jsonify({"status": "ok"})
+    origin = request.headers.get("Origin")
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response, 200
+
+
 
 def login_required(f):
     @wraps(f)
@@ -255,7 +278,7 @@ def api_add_transaction(user_id):
         db(), user_id, date=d.get("date"), type=d.get("type"), category=d.get("category", ""),
         amount=float(d.get("amount", 0)), note=d.get("note", ""),
     )
-    alert = _budget_alert_for(user_id, tx.category) if tx.type == "expense" else None
+    alert = _budget_alert_for(user_id, tx.category, month=tx.date[:7]) if tx.type == "expense" else None
     return jsonify({"transaction": vars(tx), "alert": alert}), 201
 
 
@@ -267,7 +290,7 @@ def api_edit_transaction(user_id, tx_id):
     if "amount" in fields:
         fields["amount"] = float(fields["amount"])
     tx = services.edit_transaction(db(), user_id, tx_id, **fields)
-    alert = _budget_alert_for(user_id, tx.category) if tx.type == "expense" else None
+    alert = _budget_alert_for(user_id, tx.category, month=tx.date[:7]) if tx.type == "expense" else None
     return jsonify({"transaction": vars(tx), "alert": alert})
 
 
@@ -284,12 +307,12 @@ def api_delete_transaction(user_id, tx_id):
 @login_required
 def api_duplicate_transaction(user_id, tx_id):
     tx = services.duplicate_transaction(db(), user_id, tx_id)
-    alert = _budget_alert_for(user_id, tx.category) if tx.type == "expense" else None
+    alert = _budget_alert_for(user_id, tx.category, month=tx.date[:7]) if tx.type == "expense" else None
     return jsonify({"transaction": vars(tx), "alert": alert}), 201
 
 
-def _budget_alert_for(user_id, category):
-    for status in services.budget_status(db(), user_id):
+def _budget_alert_for(user_id, category, month=None):
+    for status in services.budget_status(db(), user_id, month):
         if status["category"] == category and (status["exceeded"] or status["at_limit"] or status["near_limit"]):
             return status
     return None
