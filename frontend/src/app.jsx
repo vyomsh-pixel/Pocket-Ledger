@@ -34,8 +34,46 @@ export default function App() {
   // Modals
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [alertBanner, setAlertBanner] = useState(null);
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
+
+  // Safe Keyboard Shortcuts
+  useEffect(() => {
+    if (!shortcutsEnabled) return;
+
+    const handleKeyDown = (e) => {
+      // Guard 1: Ignore when typing in any form field or editable area
+      const activeTag = document.activeElement?.tagName;
+      if (
+        ["INPUT", "TEXTAREA", "SELECT"].includes(activeTag) ||
+        document.activeElement?.isContentEditable
+      ) {
+        return;
+      }
+
+      // Guard 2: Ignore if any modifier key is pressed (Ctrl, Cmd, Alt)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      // 'N' opens new transaction modal
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        setEditingTx(null);
+        setIsTxModalOpen(true);
+      }
+
+      // 'Escape' closes any open modal
+      if (e.key === "Escape") {
+        setIsTxModalOpen(false);
+        setIsAuthOpen(false);
+        setEditingTx(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [shortcutsEnabled]);
 
   // Check current session
   useEffect(() => {
