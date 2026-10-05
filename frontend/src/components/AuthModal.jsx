@@ -33,16 +33,22 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    >
       <div className="w-full max-w-md p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl relative text-[var(--text-primary)]">
         <button
           onClick={onClose}
+          aria-label="Close authentication modal"
           className="absolute top-4 right-4 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm"
         >
           ✕
         </button>
 
-        <h2 className="font-display text-2xl font-semibold mb-1">
+        <h2 id="auth-modal-title" className="font-display text-2xl font-semibold mb-1">
           {isRegister ? "Open Your Ledger" : "Access PocketLedger"}
         </h2>
         <p className="text-xs text-[var(--text-secondary)] mb-6">
@@ -53,10 +59,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+            <label
+              htmlFor="auth-username"
+              className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+            >
               Username
             </label>
             <input
+              id="auth-username"
               type="text"
               required
               value={username}
@@ -67,10 +77,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           </div>
 
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+            <label
+              htmlFor="auth-password"
+              className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+            >
               Password
             </label>
             <input
+              id="auth-password"
               type="password"
               required
               value={password}
@@ -83,10 +97,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           {isRegister && (
             <>
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+                <label
+                  htmlFor="auth-template"
+                  className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+                >
                   Starter Template
                 </label>
                 <select
+                  id="auth-template"
                   value={template}
                   onChange={(e) => setTemplate(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-lg bg-black/20 border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
@@ -98,10 +116,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+                <label
+                  htmlFor="auth-currency"
+                  className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+                >
                   Default Currency
                 </label>
                 <select
+                  id="auth-currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-lg bg-black/20 border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"

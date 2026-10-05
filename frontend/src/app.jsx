@@ -33,6 +33,7 @@ export default function App() {
 
   // Modals
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
   const [alertBanner, setAlertBanner] = useState(null);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);

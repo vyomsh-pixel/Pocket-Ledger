@@ -38,6 +38,7 @@ export default function TransactionTable({
           {/* Search */}
           <input
             type="text"
+            aria-label="Search transactions"
             placeholder="Search notes or category..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -47,6 +48,7 @@ export default function TransactionTable({
           {/* Type Filter */}
           <select
             value={typeFilter}
+            aria-label="Filter transactions by type"
             onChange={(e) => setTypeFilter(e.target.value)}
             className="px-2.5 py-1.5 rounded-lg bg-black/20 border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -80,8 +82,17 @@ export default function TransactionTable({
                 return (
                   <tr
                     key={tx.id}
-                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Edit ${tx.category} transaction on ${tx.date}`}
+                    className="hover:bg-white/[0.02] focus:bg-white/[0.04] focus:outline-none transition-colors group cursor-pointer"
                     onClick={() => onEdit(tx)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onEdit(tx);
+                      }
+                    }}
                   >
                     <td className="px-5 py-3.5 text-[var(--text-tertiary)] whitespace-nowrap">
                       {tx.date}
@@ -118,15 +129,19 @@ export default function TransactionTable({
                     >
                       <div className="flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                         <button
+                          type="button"
                           onClick={() => onDuplicate(tx.id)}
                           title="Duplicate entry"
+                          aria-label={`Duplicate entry for ${tx.category}`}
                           className="px-2 py-1 rounded bg-black/20 hover:bg-white/[0.08] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-[11px]"
                         >
                           📋
                         </button>
                         <button
+                          type="button"
                           onClick={() => onDelete(tx.id)}
                           title="Delete entry"
+                          aria-label={`Delete entry for ${tx.category}`}
                           className="px-2 py-1 rounded bg-black/20 hover:bg-rose-500/20 text-[var(--text-tertiary)] hover:text-rose-400 transition-colors text-[11px]"
                         >
                           ✕

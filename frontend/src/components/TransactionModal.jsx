@@ -58,16 +58,22 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tx-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    >
       <div className="w-full max-w-md p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl relative text-[var(--text-primary)]">
         <button
           onClick={onClose}
+          aria-label="Close transaction modal"
           className="absolute top-4 right-4 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm"
         >
           ✕
         </button>
 
-        <h2 className="font-display text-2xl font-semibold mb-4">
+        <h2 id="tx-modal-title" className="font-display text-2xl font-semibold mb-4">
           {editingTx ? "Edit Entry" : "New Transaction"}
         </h2>
 
@@ -100,10 +106,14 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
 
           {/* Amount */}
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+            <label
+              htmlFor="tx-amount"
+              className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+            >
               Amount
             </label>
             <input
+              id="tx-amount"
               type="number"
               step="0.01"
               required
@@ -118,7 +128,10 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
           {/* Category */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <label
+                htmlFor={isCustomCat ? "tx-custom-cat" : "tx-category"}
+                className="text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)]"
+              >
                 Category
               </label>
               <button
@@ -132,6 +145,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
 
             {isCustomCat ? (
               <input
+                id="tx-custom-cat"
                 type="text"
                 required
                 placeholder="Enter custom category..."
@@ -141,6 +155,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
               />
             ) : (
               <select
+                id="tx-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg bg-black/20 border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--accent)]"
@@ -156,10 +171,14 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+            <label
+              htmlFor="tx-date"
+              className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+            >
               Date
             </label>
             <input
+              id="tx-date"
               type="date"
               required
               value={date}
@@ -170,10 +189,14 @@ export default function TransactionModal({ isOpen, onClose, onSave, editingTx = 
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+            <label
+              htmlFor="tx-note"
+              className="block text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1"
+            >
               Note (Optional)
             </label>
             <input
+              id="tx-note"
               type="text"
               placeholder="e.g. Dinner with team, organic groceries"
               value={note}
