@@ -195,6 +195,34 @@ class TestAnalytics(unittest.TestCase):
         self.assertEqual(user1_txs[0].amount, 50)
         self.assertEqual(user2_txs[0].amount, 500)
 
+    def test_spending_insights_insufficient_history(self):
+        # Only 1 prior month of data
+        services.add_transaction(self.conn, self.user.id, date="2026-09-10", type="expense", category="Dining", amount=100)
+        services.add_transaction(self.conn, self.user.id, date="2026-10-10", type="expense", category="Dining", amount=150)
+        insights = services.get_spending_insights(self.conn, self.user.id, "2026-10")
+        self.assertFalse(insights["has_sufficient_history"])
+        self.assertEqual(insights["insights"], [])
+        self.assertIn("informational and self-reflection", insights["disclaimer"])
+
+    def test_spending_insights_deterministic_calculation(self):
+        # 2 prior months: 2026-08 (100) and 2026-09 (100) -> average = 100
+        services.add_transaction(self.conn, self.user.id, date="2026-08-05", type="expense", category="Dining", amount=100)
+        services.add_transaction(self.conn, self.user.id, date="2026-09-05", type="expense", category="Dining", amount=100)
+        # Current month 2026-10: 150 -> 50% increase
+        services.add_transaction(self.conn, self.user.id, date="2026-10-05", type="expense", category="Dining", amount=150)
+
+        insights = services.get_spending_insights(self.conn, self.user.id, "2026-10")
+        self.assertTrue(insights["has_sufficient_history"])
+        self.assertEqual(len(insights["insights"]), 1)
+        item = insights["insights"][0]
+        self.assertEqual(item["category"], "Dining")
+        self.assertEqual(item["current_amount"], 150.0)
+        self.assertEqual(item["trailing_avg"], 100.0)
+        self.assertEqual(item["percent_change"], 50.0)
+        self.assertEqual(item["direction"], "increased")
+        self.assertIn("increased by 50%", item["observation"])
+        self.assertIn("not professional financial advice", insights["disclaimer"])
+
 
 if __name__ == "__main__":
     unittest.main()

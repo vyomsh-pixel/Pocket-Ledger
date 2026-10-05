@@ -484,6 +484,8 @@ def get_analytics_data(conn, user_id: int, year_month: str = None, months_count:
             "percentage": pct
         })
 
+    insights = get_spending_insights(conn, user_id, year_month)
+
     return {
         "current_month": year_month,
         "income": inc,
@@ -492,7 +494,106 @@ def get_analytics_data(conn, user_id: int, year_month: str = None, months_count:
         "savings_rate": savings_rate,
         "health_score": health_score,
         "category_breakdown": category_percentages,
-        "historical_trends": historical
+        "historical_trends": historical,
+        "spending_insights": insights,
+    }
+
+
+def get_spending_insights(conn, user_id: int, year_month: Optional[str] = None) -> dict:
+    """Computes deterministic trailing 3-month category comparison insights.
+    
+    Principles:
+    - Never uses an LLM to generate or evaluate financial calculations.
+    - Compares current month spending against trailing completed months.
+    - Requires at least 2 completed prior months of data to avoid spurious alerts.
+    - Uses integer cents (minor units) to prevent floating-point inaccuracies.
+    - Strictly neutral, non-judgmental phrasing accompanied by clear disclaimers.
+    """
+    if year_month is None:
+        year_month = datetime.today().strftime("%Y-%m")
+
+    try:
+        curr_dt = datetime.strptime(f"{year_month}-01", "%Y-%m-%d")
+    except ValueError:
+        curr_dt = datetime.today()
+
+    # Trailing 3 completed months strictly prior to current month
+    prior_months = []
+    for i in range(1, 4):
+        y = curr_dt.year
+        m = curr_dt.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        prior_months.append(f"{y:04d}-{m:02d}")
+
+    all_months = [year_month] + prior_months
+    placeholders = ",".join("?" for _ in all_months)
+    query = f"""
+        SELECT substr(date, 1, 7) AS month, category, SUM(amount) AS total
+        FROM transactions
+        WHERE user_id = ? AND type = 'expense' AND substr(date, 1, 7) IN ({placeholders})
+        GROUP BY substr(date, 1, 7), category
+    """
+    rows = conn.execute(query, [user_id] + all_months).fetchall()
+
+    active_prior_months = set()
+    current_expenses_cents = {}
+    prior_expenses_cents = {}
+
+    for row in rows:
+        m = row["month"]
+        cat = row["category"]
+        amount_cents = int(round(float(row["total"]) * 100))
+        if m == year_month:
+            current_expenses_cents[cat] = amount_cents
+        elif m in prior_months:
+            active_prior_months.add(m)
+            prior_expenses_cents[cat] = prior_expenses_cents.get(cat, 0) + amount_cents
+
+    num_active_prior = len(active_prior_months)
+    disclaimer = "For informational and self-reflection purposes only; not professional financial advice."
+
+    if num_active_prior < 2:
+        return {
+            "insights": [],
+            "has_sufficient_history": False,
+            "completed_baseline_months": num_active_prior,
+            "disclaimer": disclaimer,
+        }
+
+    insights = []
+    for cat, curr_cents in current_expenses_cents.items():
+        prior_total_cents = prior_expenses_cents.get(cat, 0)
+        avg_cents = prior_total_cents / num_active_prior
+        
+        if avg_cents > 0:
+            diff_cents = curr_cents - avg_cents
+            pct_change = round((diff_cents / avg_cents) * 100, 1)
+            
+            # Meaningful threshold: at least 10% change and at least $5.00 / Rs. 500 absolute diff
+            if abs(pct_change) >= 10.0 and abs(diff_cents) >= 500:
+                direction = "increased" if pct_change > 0 else "decreased"
+                observation = (
+                    f"{cat} spending {direction} by {abs(pct_change):.0f}% this month "
+                    f"compared to your trailing {num_active_prior}-month average."
+                )
+                insights.append({
+                    "category": cat,
+                    "current_amount": round(curr_cents / 100.0, 2),
+                    "trailing_avg": round(avg_cents / 100.0, 2),
+                    "percent_change": pct_change,
+                    "direction": direction,
+                    "observation": observation,
+                })
+
+    insights.sort(key=lambda x: abs(x["percent_change"]), reverse=True)
+
+    return {
+        "insights": insights,
+        "has_sufficient_history": True,
+        "completed_baseline_months": num_active_prior,
+        "disclaimer": disclaimer,
     }
 
 

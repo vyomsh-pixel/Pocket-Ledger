@@ -398,10 +398,32 @@ function updateSummaryDOM(s) {
   renderCategoryBreakdown(s);
 }
 
+const monthSummaryCache = new Map();
+
+function invalidateMonthCache(targetMonth) {
+  if (targetMonth) {
+    monthSummaryCache.delete(targetMonth);
+  } else {
+    monthSummaryCache.clear();
+  }
+}
+
 async function refreshSummary() {
   if (!state.user) return;
-  const s = await api(`/api/summary?month=${state.month}`);
-  updateSummaryDOM(s);
+  const currentMonth = state.month;
+  // Stale-while-revalidate: instant render from cache if available
+  if (monthSummaryCache.has(currentMonth)) {
+    updateSummaryDOM(monthSummaryCache.get(currentMonth));
+  }
+  try {
+    const s = await api(`/api/summary?month=${currentMonth}`);
+    monthSummaryCache.set(currentMonth, s);
+    if (state.month === currentMonth) {
+      updateSummaryDOM(s);
+    }
+  } catch (err) {
+    if (!monthSummaryCache.has(currentMonth)) throw err;
+  }
 }
 
 function updatePersonaTag(savingsRate) {
@@ -983,7 +1005,7 @@ function shiftMonth(delta) {
   const d = new Date(y, m - 1 + delta, 1);
   state.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   el("monthLabel").textContent = monthLabel();
-  refreshAll();
+  refreshAll(true);
 }
 el("prevMonth").addEventListener("click", () => shiftMonth(-1));
 el("nextMonth").addEventListener("click", () => shiftMonth(1));
@@ -1208,8 +1230,11 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-async function refreshAll() {
+async function refreshAll(skipCacheClear = false) {
   if (!state.user) return;
+  if (!skipCacheClear) {
+    invalidateMonthCache();
+  }
   await Promise.all([refreshSummary(), refreshTransactions(), refreshBudgets()]);
 }
 
@@ -1242,7 +1267,7 @@ if (monthLabelEl && monthPickerEl) {
     if (e.target.value) {
       state.month = e.target.value;
       monthLabelEl.textContent = monthLabel();
-      refreshAll();
+      refreshAll(true);
     }
   });
 }
