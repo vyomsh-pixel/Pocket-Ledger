@@ -283,7 +283,14 @@ async function api(path, opts = {}) {
     ...opts,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Something went wrong.");
+  if (!res.ok) {
+    const message = (typeof data.error === "object" && data.error !== null)
+      ? data.error.message
+      : (data.error || "Something went wrong.");
+    const err = new Error(message);
+    err.code = data.code;
+    throw err;
+  }
   return data;
 }
 

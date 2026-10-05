@@ -17,11 +17,27 @@ from expense_tracker.services import ValidationError
 
 app = Flask(__name__)
 
-DB_PATH = os.environ.get("POCKETLEDGER_DB", os.path.join(app.root_path, "pocketledger.db"))
-secret_key = os.environ.get("SECRET_KEY", "pocketledger-wabisabi-secret-key-2026")
-app.secret_key = secret_key
 is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+is_prod = is_vercel or os.environ.get("FLASK_ENV") == "production" or os.environ.get("ENVIRONMENT") == "production"
 
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key:
+    if is_prod:
+        raise RuntimeError("SECRET_KEY environment variable must be configured in production.")
+    import secrets
+    secret_key = os.environ.get("SECRET_KEY_DEV", secrets.token_hex(32))
+
+app.secret_key = secret_key
+
+
+def api_error(message: str, code: str = "ERROR", status_code: int = 400, details: dict = None, **kwargs):
+    payload = {
+        "error": message,
+        "code": code,
+        "details": details or {},
+        **kwargs
+    }
+    return jsonify(payload), status_code
 
 
 def db():
@@ -39,12 +55,12 @@ def close_db(exception=None):
 
 @app.errorhandler(ValidationError)
 def handle_validation_error(e):
-    return jsonify({"error": str(e)}), 400
+    return api_error(str(e), code="VALIDATION_ERROR", status_code=400)
 
 
 @app.errorhandler(Exception)
 def handle_general_exception(e):
-    return jsonify({"error": str(e)}), 500
+    return api_error(str(e), code="INTERNAL_SERVER_ERROR", status_code=500)
 
 
 @app.after_request
@@ -76,7 +92,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         user_id = session.get("user_id")
         if not user_id:
-            return jsonify({"error": "Unauthorized", "auth_required": True}), 401
+            return api_error("Unauthorized", code="UNAUTHORIZED", status_code=401, auth_required=True)
         return f(user_id, *args, **kwargs)
     return decorated_function
 
@@ -150,7 +166,7 @@ def api_login():
     password = d.get("password", "")
     user = services.authenticate_user(db(), username, password)
     if not user:
-        return jsonify({"error": "Invalid username or password."}), 401
+        return api_error("Invalid username or password.", code="INVALID_CREDENTIALS", status_code=401)
     session["user_id"] = user.id
     session["username"] = user.username
     return jsonify({"user": {"id": user.id, "username": user.username, "created_at": user.created_at, "currency": user.currency}})
@@ -176,7 +192,7 @@ def api_google_auth():
     )
 
     if not skip_verify and not id_token_str:
-        return jsonify({"error": "Missing Google idToken."}), 401
+        return api_error("Missing Google idToken.", code="MISSING_ID_TOKEN", status_code=401)
 
     google_id = d.get("google_id") or d.get("sub")
     email = d.get("email") or d.get("username")
@@ -204,7 +220,7 @@ def api_google_auth():
                 pass
 
     if not google_id or not email:
-        return jsonify({"error": "Google authentication payload missing required fields."}), 400
+        return api_error("Google authentication payload missing required fields.", code="INVALID_AUTH_PAYLOAD", status_code=400)
 
     user = services.get_or_create_google_user(db(), google_id=google_id, email=email, template=template, currency=currency)
     session["user_id"] = user.id
@@ -241,7 +257,7 @@ def api_update_currency(user_id):
             user = services.User.from_row(row)
             session["user_id"] = user.id
     if not user:
-        return jsonify({"error": "User session expired. Please sign in again."}), 401
+        return api_error("User session expired. Please sign in again.", code="SESSION_EXPIRED", status_code=401)
     updated = services.update_user_currency(db(), user.id, new_curr)
     return jsonify({"user": {"id": updated.id, "username": updated.username, "created_at": updated.created_at, "currency": updated.currency}})
 
@@ -299,7 +315,7 @@ def api_edit_transaction(user_id, tx_id):
 def api_delete_transaction(user_id, tx_id):
     ok = services.delete_transaction(db(), user_id, tx_id)
     if not ok:
-        return jsonify({"error": f"No transaction with id {tx_id}."}), 404
+        return api_error(f"No transaction with id {tx_id}.", code="TRANSACTION_NOT_FOUND", status_code=404)
     return jsonify({"deleted": tx_id})
 
 
@@ -344,7 +360,7 @@ def api_delete_budget(user_id, category):
     clean_cat = unquote(category).strip()
     ok = services.delete_budget(db(), user_id, clean_cat)
     if not ok:
-        return jsonify({"error": f"No budget set for category '{clean_cat}'."}), 404
+        return api_error(f"No budget set for category '{clean_cat}'.", code="BUDGET_NOT_FOUND", status_code=404)
     return jsonify({"deleted": clean_cat})
 
 
@@ -389,7 +405,7 @@ def api_import(user_id):
     import tempfile
     file = request.files.get("file")
     if not file:
-        return jsonify({"error": "No file uploaded."}), 400
+        return api_error("No file uploaded.", code="NO_FILE_UPLOADED", status_code=400)
     tmp_dir = tempfile.gettempdir()
     tmp_path = os.path.join(tmp_dir, f"_import_{user_id}.csv")
     file.save(tmp_path)

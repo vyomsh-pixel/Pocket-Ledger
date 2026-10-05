@@ -11,7 +11,13 @@ async function fetchJSON(url, options = {}) {
   const res = await fetch(url, { ...defaults, ...options });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || `Request failed with status ${res.status}`);
+    const message = (typeof errorData.error === "object" && errorData.error !== null)
+      ? errorData.error.message
+      : (errorData.error || `Request failed with status ${res.status}`);
+    const err = new Error(message);
+    err.code = errorData.code;
+    err.details = errorData.details;
+    throw err;
   }
   return res.json();
 }
