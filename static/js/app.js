@@ -1454,8 +1454,15 @@ if (googleAuthBtn) {
       toast(`Signed in as ${res.user.username}`);
       await refreshAll();
     } catch (err) {
+      console.error("Google Auth error:", err);
       if (errEl) {
-        errEl.textContent = err.message || "Google Authentication failed.";
+        let msg = err.message || "Google Authentication failed.";
+        if (err.code === "auth/unauthorized-domain") {
+          msg = `Domain (${window.location.hostname}) is not authorized in Firebase Console. Add '${window.location.hostname}' in Firebase Console -> Authentication -> Settings -> Authorized Domains.`;
+        } else if (err.code === "auth/popup-closed-by-user") {
+          msg = "Sign-in popup was closed before completing.";
+        }
+        errEl.textContent = msg;
         errEl.hidden = false;
       }
       toast(err.message || "Google Sign-In failed", true);

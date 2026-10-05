@@ -20,13 +20,10 @@ app = Flask(__name__)
 is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 is_prod = is_vercel or os.environ.get("FLASK_ENV") == "production" or os.environ.get("ENVIRONMENT") == "production"
 
-secret_key = os.environ.get("SECRET_KEY")
-if not secret_key:
-    if is_prod:
-        raise RuntimeError("SECRET_KEY environment variable must be configured in production.")
-    import secrets
-    secret_key = os.environ.get("SECRET_KEY_DEV", secrets.token_hex(32))
+default_db = "/tmp/pocketledger.db" if is_vercel else os.path.join(app.root_path, "pocketledger.db")
+DB_PATH = os.environ.get("POCKETLEDGER_DB", default_db)
 
+secret_key = os.environ.get("SECRET_KEY", "pocketledger-wabisabi-secret-key-2026")
 app.secret_key = secret_key
 
 
